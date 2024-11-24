@@ -1,4 +1,4 @@
-const db = require("../db");
+const { db } = require("../db");
 
 const Room = {
     create: (room) => {
@@ -50,11 +50,36 @@ const Room = {
     },
     delete: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `DELETE FROM permissions WHERE room_id = ?;
-                         DELETE FROM computers WHERE room_id = ?;`;
-            db.run(sql, [id], (err) => {
-                if (err) reject(err);
-                else resolve();
+            // Start a transaction
+            db.serialize(() => {
+                db.run('BEGIN TRANSACTION');
+                
+                // Delete permissions first
+                db.run('DELETE FROM permissions WHERE room_id = ?', [id], (err) => {
+                    if (err) {
+                        db.run('ROLLBACK');
+                        return reject(err);
+                    }
+                    
+                    // Then delete computers
+                    db.run('DELETE FROM computers WHERE room_id = ?', [id], (err) => {
+                        if (err) {
+                            db.run('ROLLBACK');
+                            return reject(err);
+                        }
+                        
+                        // Finally delete the room
+                        db.run('DELETE FROM rooms WHERE id = ?', [id], (err) => {
+                            if (err) {
+                                db.run('ROLLBACK');
+                                return reject(err);
+                            }
+                            
+                            db.run('COMMIT');
+                            resolve();
+                        });
+                    });
+                });
             });
         });
     },

@@ -13,7 +13,11 @@ import { Tooltip } from "react-tooltip"; // You'll need to install this package
 
 const SideBar = ({ user }) => {
     const [amountOfRooms, setAmountOfRooms] = useState(0);
-    const [amountOfComputers, setAmountOfComputers] = useState(0);
+    const [computerStats, setComputerStats] = useState({
+        amount: 0,
+        amount_error: 0,
+        amount_online: 0
+    });
     const [amountOfUsers, setAmountOfUsers] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -27,7 +31,7 @@ const SideBar = ({ user }) => {
                     setAmountOfRooms(roomsList.data);
                     if (user.role === "admin") {
                         const computersList = await computers.amount();
-                        setAmountOfComputers(computersList.data);
+                        setComputerStats(computersList.data);
                         const usersList = await users.amount();
                         setAmountOfUsers(usersList.data);
                     }
@@ -54,7 +58,7 @@ const SideBar = ({ user }) => {
                   name: "Computers",
                   icon: FaDesktop,
                   key: "computers",
-                  count: amountOfComputers,
+                  count: `${computerStats.amount_online}/${computerStats.amount}`,
               },
               user.role === "admin" && {
                   name: "Users",
@@ -93,23 +97,23 @@ const SideBar = ({ user }) => {
     };
 
     const Logo = () => (
-        <div className="flex items-center justify-center py-6 border-b border-gray-700">
+        <div className='flex items-center justify-center py-6 border-b border-gray-700'>
             <img
-                src="src/assets/react.svg"
-                alt="Logo"
-                className="h-12 w-12 rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-200"
+                src='src/assets/react.svg'
+                alt='Logo'
+                className='h-12 w-12 rounded-lg shadow-lg transform hover:scale-105 transition-transform duration-200'
             />
-            <span className="ml-3 text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+            <span className='ml-3 text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent'>
                 Remotly
             </span>
         </div>
     );
 
     const LoadingSpinner = () => (
-        <div className="flex items-center justify-center h-screen">
-            <div className="relative">
-                <div className="w-16 h-16 border-4 border-blue-200 border-solid rounded-full animate-spin">
-                    <div className="absolute top-0 left-0 w-full h-full border-t-4 border-blue-500 rounded-full animate-pulse"></div>
+        <div className='flex items-center justify-center h-screen'>
+            <div className='relative'>
+                <div className='w-16 h-16 border-4 border-blue-200 border-solid rounded-full animate-spin'>
+                    <div className='absolute top-0 left-0 w-full h-full border-t-4 border-blue-500 rounded-full animate-pulse'></div>
                 </div>
             </div>
         </div>
@@ -118,17 +122,17 @@ const SideBar = ({ user }) => {
     if (loading) return <LoadingSpinner />;
     if (error)
         return (
-            <div className="flex items-center justify-center h-screen text-red-500">
+            <div className='flex items-center justify-center h-screen text-red-500'>
                 {error}
             </div>
         );
 
     return (
-        <div className="bg-gray-900 text-white h-screen w-64 fixed left-0 top-0 flex flex-col shadow-xl">
+        <div className='bg-gray-900 text-white h-screen w-64 fixed left-0 top-0 flex flex-col shadow-xl'>
             <Logo />
 
-            <nav className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-                <ul className="space-y-2">
+            <nav className='flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900'>
+                <ul className='space-y-2'>
                     {menuItems.filter(Boolean).map((item) => (
                         <li key={item.key}>
                             <Link
@@ -149,29 +153,29 @@ const SideBar = ({ user }) => {
                                             : "text-gray-400 group-hover:text-white"
                                     }`}
                                 />
-                                <span className="font-medium">{item.name}</span>
+                                <span className='font-medium'>{item.name}</span>
                                 {item.count !== undefined && (
-                                    <span className="ml-auto px-2.5 py-0.5 bg-blue-500 bg-opacity-20 text-blue-300 text-xs font-medium rounded-full">
+                                    <span className='ml-auto px-2.5 py-0.5 bg-blue-500 bg-opacity-20 text-blue-300 text-xs font-medium rounded-full'>
                                         {item.count}
                                     </span>
                                 )}
                             </Link>
-                            <Tooltip id={`tooltip-${item.key}`} place="right" />
+                            <Tooltip id={`tooltip-${item.key}`} place='right' />
                         </li>
                     ))}
                 </ul>
             </nav>
 
-            <footer className="p-4 border-t border-gray-700">
-                <div className="flex items-center justify-between text-gray-400 text-sm">
+            <footer className='p-4 border-t border-gray-700'>
+                <div className='flex items-center justify-between text-gray-400 text-sm'>
                     <span>© 2024 Remotly</span>
                     <a
-                        href="https://github.com/LoGGGG2402"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-white transition-colors duration-200"
+                        href='https://github.com/LoGGGG2402'
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='hover:text-white transition-colors duration-200'
                     >
-                        <FaGithub className="w-5 h-5" />
+                        <FaGithub className='w-5 h-5' />
                     </a>
                 </div>
             </footer>

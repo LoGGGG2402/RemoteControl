@@ -73,9 +73,21 @@ const UserController = {
             }
             // remove password from user object
             delete user.password;
-            const token = jwt.signAccessToken(user);
-            const refreshToken = jwt.signRefreshToken(user);
-            res.json({ user, token, refreshToken });
+            delete user.created_at;
+            const token = await jwt.signAccessToken(user);
+            const refreshToken = await jwt.signRefreshToken(user);
+            
+            // Add expiry times
+            const expireTime = new Date().getTime() + 15 * 60 * 1000; // 15 minutes
+            const refreshTokenExpireTime = new Date().getTime() + 7 * 24 * 60 * 60 * 1000; // 7 days
+
+            res.json({ 
+                user, 
+                token, 
+                refreshToken,
+                expireTime,
+                refreshTokenExpireTime 
+            });
         } catch (err) {
             console.error(err);
             res.status(500).send("Internal Server Error");
@@ -85,12 +97,26 @@ const UserController = {
     refresh: async (req, res) => {
         try {
             const refreshToken = req.body.refreshToken;
+            if (!refreshToken) {
+                return res.status(401).send("Refresh token required");
+            }
+            
             const user = jwt.verifyRefreshToken(refreshToken);
-            const token = jwt.signAccessToken(user);
-            res.json({ token });
+            const newToken = await jwt.signAccessToken(user);
+            const newRefreshToken = await jwt.signRefreshToken(user);
+            
+            const expireTime = new Date().getTime() + 15 * 60 * 1000;
+            const refreshTokenExpireTime = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
+
+            res.json({ 
+                token: newToken, 
+                refreshToken: newRefreshToken,
+                expireTime,
+                refreshTokenExpireTime 
+            });
         } catch (err) {
             console.error(err);
-            res.status(500).send("Internal Server Error");
+            res.status(401).send("Invalid refresh token");
         }
     },
 };

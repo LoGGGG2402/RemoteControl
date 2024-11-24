@@ -27,10 +27,10 @@ const RoomController = {
         try {
             if (req.user.role === "admin") {
                 const rooms = await Room.all();
-                res.json(rooms);
+                return res.json(rooms);
             }
             const rooms = await User.getRooms(req.user.id);
-            res.json(rooms);
+            return res.json(rooms);
         } catch (err) {
             console.error(err);
             res.status(500).send("Internal Server Error");

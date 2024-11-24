@@ -40,7 +40,7 @@ function App() {
                                         )
                                     }
                                 />
-                                <Route path='/login' element={<Login />} />
+                                <Route path='/login' element={<LoginPage />} />
                                 <Route
                                     path='/users'
                                     element={<UserList user={user} />}

@@ -1,4 +1,5 @@
-const db = require("../db");
+const { db } = require("../db");
+const { findById } = require("./room.model");
 
 const User = {
     findByUsername: (username) => {
@@ -17,6 +18,18 @@ const User = {
         return new Promise((resolve, reject) => {
             const sql = `SELECT * FROM users WHERE email = ?`;
             db.get(sql, [email], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+    },
+    findById: (id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT * FROM users WHERE id = ?`;
+            db.get(sql, [id], (err, row) => {
                 if (err) {
                     reject(err);
                 } else {

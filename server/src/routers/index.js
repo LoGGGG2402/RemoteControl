@@ -9,9 +9,9 @@ const { Router } = require("express");
 
 const router = Router();
 
-router.use("/users", UserRoutes);
-router.use("/agents", AgentRoutes);
-router.use("/computers", authMiddleware, ComputerRoutes);
-router.use("/rooms", authMiddleware, RoomRoutes);
+router.use("/user", UserRoutes);
+router.use("/agent", AgentRoutes);
+router.use("/computer", authMiddleware, ComputerRoutes);
+router.use("/room", authMiddleware, RoomRoutes);
 
 module.exports = router;
