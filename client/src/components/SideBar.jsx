@@ -16,7 +16,7 @@ const SideBar = ({ user }) => {
     const [computerStats, setComputerStats] = useState({
         amount: 0,
         amount_error: 0,
-        amount_online: 0
+        amount_online: 0,
     });
     const [amountOfUsers, setAmountOfUsers] = useState(0);
     const [loading, setLoading] = useState(true);

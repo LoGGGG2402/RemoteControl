@@ -13,6 +13,23 @@ const ComputerController = {
         }
     },
 
+    get: async (req, res) => {
+        try {
+            const id = req.params.id;
+            const computer = await Computer.findById(id);
+
+            if (!computer) {
+                res.status(404).send("Computer not found");
+                return;
+            }
+
+            res.json(computer);
+        } catch (err) {
+            console.error(err);
+            res.status(500).send("Internal Server Error");
+        }
+    },
+
     amount: async (req, res) => {
         try {
             const amount = await Computer.amount();
@@ -157,6 +174,29 @@ const ComputerController = {
         } catch (error) {
             console.error("Error installing application:", error);
             res.status(500).json({ error: "Internal server error" });
+        }
+    },
+
+    update: async (req, res) => {
+        try {
+            const { room_id, row_index, column_index } = req.params;
+            const { ip_address, mac_address, hostname, notes, errors } =
+                req.body;
+
+            await Computer.update({
+                room_id,
+                row_index,
+                column_index,
+                ip_address,
+                mac_address,
+                hostname,
+                notes,
+                errors,
+            });
+            res.status(200).send("Computer updated");
+        } catch (err) {
+            console.error(err);
+            res.status(500).send("Internal Server Error");
         }
     },
 };

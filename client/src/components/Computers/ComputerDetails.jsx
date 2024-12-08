@@ -1,5 +1,5 @@
 import React from "react";
-const ComputerView = ({ user, computer }) => {
+const ComputerDetails = ({ user, computer }) => {
     const { id } = useParams();
 
     if (isLoading) return <div>Loading...</div>;
@@ -13,4 +13,4 @@ const ComputerView = ({ user, computer }) => {
     );
 };
 
-export default ComputerView;
+export default ComputerDetails;

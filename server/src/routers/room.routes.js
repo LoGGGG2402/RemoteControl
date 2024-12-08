@@ -12,6 +12,8 @@ router.get(
     RoomController.amount
 );
 
+router.get("/:id", permissionMiddleware("view", "room"), RoomController.get);
+
 // Management Routes
 router.post(
     "/",
@@ -31,11 +33,6 @@ router.delete(
 
 // Computer Routes
 router.get(
-    "/:id/computers",
-    permissionMiddleware("view", "room"),
-    RoomController.getComputers
-);
-router.get(
     "/:id/amount_computers",
     permissionMiddleware("view", "room"),
     RoomController.amountComputers
@@ -46,6 +43,7 @@ router.get(
     permissionMiddleware("view", "room"),
     RoomController.getComputersInstalled
 );
+
 router.post(
     "/applications",
     permissionMiddleware("manage", "room"),
@@ -63,8 +61,9 @@ router.post(
     permissionMiddleware("manage", "global"),
     RoomController.addUser
 );
+
 router.delete(
-    "/users",
+    "/:id/users",
     permissionMiddleware("manage", "global"),
     RoomController.removeUser
 );

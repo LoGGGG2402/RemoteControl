@@ -8,16 +8,16 @@ const { sendCommandToComputer } = require("../utils/agentCommunication");
 const RoomController = {
     create: async (req, res) => {
         try {
-            const { name, description } = req.body;
-            await Room.create({ name, description });
+            const { name, description, row_count, column_count } = req.body;
+            await Room.create({ name, description, row_count, column_count });
             res.status(201).send("Room created");
         } catch (err) {
-            console.error("Error creating room:", err);
+            console.error(err);
             if (err.code === "SQLITE_CONSTRAINT") {
-                res.status(400).send("Room already exists");
+                return res.status(400).send("Room already exists");
             }
             if (err.name === "ValidationError") {
-                res.status(400).send(err.message);
+                return res.status(400).send(err.message);
             }
             res.status(500).send("Internal Server Error");
         }
@@ -71,9 +71,32 @@ const RoomController = {
     update: async (req, res) => {
         try {
             const { id } = req.params;
-            const { name, description } = req.body;
-            await Room.update({ id, name, description });
+            const { name, description, row_count, column_count } = req.body;
+            await Room.update({
+                id,
+                name,
+                description,
+                row_count,
+                column_count,
+            });
             res.status(200).send("Room updated");
+        } catch (err) {
+            console.error(err);
+            res.status(500).send("Internal Server Error");
+        }
+    },
+
+    get: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const room = await Room.findById(id);
+            const computers = await Room.getComputers(id);
+            if (!room) {
+                res.status(404).send("Room not found");
+                return;
+            }
+            room.computers = computers;
+            res.json(room);
         } catch (err) {
             console.error(err);
             res.status(500).send("Internal Server Error");
@@ -88,17 +111,6 @@ const RoomController = {
             const amount_error = await Room.amountErrors(id);
             const amount_online = await Room.amountOnline(id);
             res.json({ amount, amount_error, amount_online });
-        } catch (err) {
-            console.error(err);
-            res.status(500).send("Internal Server Error");
-        }
-    },
-
-    getComputers: async (req, res) => {
-        try {
-            const { id } = req.params;
-            const computers = await Room.getComputers(id);
-            res.json(computers);
         } catch (err) {
             console.error(err);
             res.status(500).send("Internal Server Error");
@@ -187,8 +199,13 @@ const RoomController = {
     // User permissions
     addUser: async (req, res) => {
         try {
-            const { room_id, user_id } = req.body;
-            await Permissions.create({ room_id, user_id });
+            const { room_id, user_id, can_view, can_manage } = req.body;
+            await Permissions.create({
+                room_id,
+                user_id,
+                can_view,
+                can_manage,
+            });
             res.status(201).send("User added to room");
         } catch (err) {
             console.error(err);
@@ -201,8 +218,9 @@ const RoomController = {
 
     removeUser: async (req, res) => {
         try {
-            const { room_id, user_id } = req.body;
-            await Permissions.delete({ room_id, user_id });
+            const { user_id } = req.body;
+            const { id: room_id } = req.params;
+            await Permissions.delete(user_id, room_id);
             res.status(204).send();
         } catch (err) {
             console.error(err);

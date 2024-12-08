@@ -7,7 +7,7 @@ const config = {
     jwtAlgorithm: process.env.JWT_ALGORITHM || "HS256",
     refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET || "refresh-secret",
     refreshTokenExpiration: process.env.REFRESH_TOKEN_EXPIRATION || "7d",
-    accessTokenExpiration: process.env.ACCESS_TOKEN_EXPIRATION || "15m",
+    accessTokenExpiration: process.env.ACCESS_TOKEN_EXPIRATION || "1m",
 };
 
 module.exports = config;

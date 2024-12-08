@@ -3,15 +3,18 @@ import { rooms } from "../../utils/api";
 import RoomCard from "./RoomCard";
 import { FaPlus, FaSpinner } from "react-icons/fa";
 
-const RoomList = ({ user }) => {
+const RoomsPage = ({ user }) => {
     const [roomList, setRoomList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [modalError, setModalError] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [editingRoom, setEditingRoom] = useState(null);
     const [formData, setFormData] = useState({
         name: "",
         description: "",
+        row_count: 10,
+        column_count: 4,
     });
 
     useEffect(() => {
@@ -21,7 +24,6 @@ const RoomList = ({ user }) => {
     const fetchRooms = async () => {
         try {
             const response = await rooms.all();
-            console.log(response);
             setRoomList(response.data);
         } catch (err) {
             setError("Failed to fetch rooms");
@@ -33,25 +35,45 @@ const RoomList = ({ user }) => {
 
     const handleCreate = async () => {
         try {
+            if (!formData.name.trim()) {
+                setModalError("Room name is required");
+                return;
+            }
             await rooms.create(formData);
             fetchRooms();
             setShowModal(false);
-            setFormData({ name: "", description: "" });
+            setFormData({
+                name: "",
+                description: "",
+                row_count: 10,
+                column_count: 4,
+            });
+            setModalError(null);
         } catch (err) {
-            setError("Failed to create room");
+            setModalError("Failed to create room");
             console.error(err);
         }
     };
 
     const handleUpdate = async () => {
         try {
+            if (!formData.name.trim()) {
+                setModalError("Room name is required");
+                return;
+            }
             await rooms.update({ ...formData, id: editingRoom.id });
             fetchRooms();
             setShowModal(false);
             setEditingRoom(null);
-            setFormData({ name: "", description: "" });
+            setFormData({
+                name: "",
+                description: "",
+                row_count: 10,
+                column_count: 4,
+            });
+            setModalError(null);
         } catch (err) {
-            setError("Failed to update room");
+            setModalError("Failed to update room");
             console.error(err);
         }
     };
@@ -99,6 +121,8 @@ const RoomList = ({ user }) => {
                                 setFormData({
                                     name: room.name,
                                     description: room.description,
+                                    row_count: room.row_count || 10,
+                                    column_count: room.column_count || 4,
                                 });
                                 setShowModal(true);
                             }}
@@ -115,6 +139,11 @@ const RoomList = ({ user }) => {
                         <h2 className='text-xl font-bold mb-4'>
                             {editingRoom ? "Edit Room" : "Create Room"}
                         </h2>
+                        {modalError && (
+                            <div className='text-red-500 mb-4'>
+                                {modalError}
+                            </div>
+                        )}
                         <input
                             type='text'
                             placeholder='Room Name'
@@ -138,13 +167,57 @@ const RoomList = ({ user }) => {
                                 })
                             }
                         />
+                        <div className='flex gap-4 mb-4'>
+                            <div className='flex-1'>
+                                <label className='block text-sm font-medium mb-1'>
+                                    Rows
+                                </label>
+                                <input
+                                    type='number'
+                                    className='w-full p-2 border rounded'
+                                    value={formData.row_count}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            row_count:
+                                                parseInt(e.target.value) || 0,
+                                        })
+                                    }
+                                    min='1'
+                                />
+                            </div>
+                            <div className='flex-1'>
+                                <label className='block text-sm font-medium mb-1'>
+                                    Columns
+                                </label>
+                                <input
+                                    type='number'
+                                    className='w-full p-2 border rounded'
+                                    value={formData.column_count}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            column_count:
+                                                parseInt(e.target.value) || 0,
+                                        })
+                                    }
+                                    min='1'
+                                />
+                            </div>
+                        </div>
                         <div className='flex justify-end gap-2'>
                             <button
                                 className='bg-gray-500 text-white p-2 rounded'
                                 onClick={() => {
                                     setShowModal(false);
                                     setEditingRoom(null);
-                                    setFormData({ name: "", description: "" });
+                                    setFormData({
+                                        name: "",
+                                        description: "",
+                                        row_count: 10,
+                                        column_count: 4,
+                                    });
+                                    setModalError(null);
                                 }}
                             >
                                 Cancel
@@ -165,4 +238,4 @@ const RoomList = ({ user }) => {
     );
 };
 
-export default RoomList;
+export default RoomsPage;

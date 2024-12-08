@@ -13,15 +13,23 @@ router.get(
 );
 
 router.get(
+    "/:id",
+    permissionMiddleware("view", "computer"),
+    ComputerController.get
+);
+
+router.get(
     "/:id/processes",
     permissionMiddleware("view", "computer"),
     ComputerController.viewProcesses
 );
+
 router.get(
     "/:id/network",
     permissionMiddleware("view", "computer"),
     ComputerController.viewNetActivities
 );
+
 router.get(
     "/:id/applications",
     permissionMiddleware("view", "computer"),

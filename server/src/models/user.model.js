@@ -2,6 +2,30 @@ const { db } = require("../db");
 const { findById } = require("./room.model");
 
 const User = {
+    all: () => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT id, full_name, email, role FROM users`;
+            db.all(sql, (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    },
+    amount: () => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT COUNT(*) AS amount FROM users`;
+            db.get(sql, (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row.amount);
+                }
+            });
+        });
+    },
     findByUsername: (username) => {
         return new Promise((resolve, reject) => {
             const sql = `SELECT * FROM users WHERE username = ?`;
@@ -40,9 +64,9 @@ const User = {
     },
     create: (user) => {
         return new Promise((resolve, reject) => {
-            const { fullname, email, username, password, role } = user;
-            const sql = `INSERT INTO users (fullname, email, username, password, role) VALUES (?, ?, ?, ?, ?)`;
-            db.run(sql, [fullname, email, username, password, role], (err) => {
+            const { full_name, email, password, role } = user;
+            const sql = `INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, ?)`;
+            db.run(sql, [full_name, email, password, role], (err) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -51,35 +75,11 @@ const User = {
             });
         });
     },
-    all: () => {
-        return new Promise((resolve, reject) => {
-            const sql = `SELECT id, fullname, email, username, role FROM users`;
-            db.all(sql, (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(rows);
-                }
-            });
-        });
-    },
-    amount: () => {
-        return new Promise((resolve, reject) => {
-            const sql = `SELECT COUNT(*) AS amount FROM users`;
-            db.get(sql, (err, row) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(row.amount);
-                }
-            });
-        });
-    },
     update: (user) => {
         return new Promise((resolve, reject) => {
-            const { id, fullname, email, username, password } = user;
-            const sql = `UPDATE users SET fullname = ?, email = ?, username = ?, password = ? WHERE id = ?`;
-            db.run(sql, [fullname, email, username, password, id], (err) => {
+            const { id, full_name, email, password } = user;
+            const sql = `UPDATE users SET full_name = ?, email = ?, password = ? WHERE id = ?`;
+            db.run(sql, [full_name, email, password, id], (err) => {
                 if (err) {
                     reject(err);
                 } else {

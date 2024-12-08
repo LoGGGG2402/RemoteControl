@@ -4,8 +4,12 @@ const { findById } = require("./computer.model");
 const Application = {
     create: (application) => {
         return new Promise((resolve, reject) => {
-            const { name, description, create_by } = application;
-            const sql = `INSERT INTO applications (name, description, create_by) VALUES (?, ?, ?)`;
+            const { name, description } = application;
+            const sql = `INSERT INTO applications (name, description) VALUES (?, ?)`;
+            db.run(sql, [name, description], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
         });
     },
     findById: (id) => {
@@ -37,11 +41,28 @@ const Application = {
     },
     delete: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `DELETE FROM installed_applications WHERE application_id = ?;
-                         DELETE FROM applications WHERE id = ?`;
-            db.run(sql, [id], (err) => {
-                if (err) reject(err);
-                else resolve();
+            // delete application by id and all its installed applications
+            db.run("BEGIN TRANSACTION");
+            db.run("DELETE FROM installed_applications WHERE application_id = ?",
+                [id],
+                (err) => {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        return reject(err);
+                    }
+
+                    db.run("DELETE FROM applications WHERE id = ?", [id], (err) => {
+                        if (err) {
+                            db.run("ROLLBACK");
+                            return reject(err);
+                        }
+
+                        db.run("COMMIT", (err) => {
+                            if (err) reject(err);
+                            else resolve();
+                        });
+
+                    });
             });
         });
     },

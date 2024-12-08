@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash, FaUserAstronaut } from "react-icons/fa";
 import { ImSpinner8 } from "react-icons/im";
 import { motion, AnimatePresence } from "framer-motion";
 import { auth } from "../utils/api";
 
 const LoginPage = () => {
+    let navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -14,11 +16,11 @@ const LoginPage = () => {
     const [error, setError] = useState(null);
 
     const commonDomains = [
+        "@gmail.com",
         "@example.com",
         "@yahoo.com",
         "@hotmail.com",
         "@outlook.com",
-        "@gmail.com",
     ];
 
     const validateEmail = (email) => {
@@ -29,11 +31,11 @@ const LoginPage = () => {
     const handleEmailChange = (e) => {
         const value = e.target.value;
         setEmail(value);
-        // if (!validateEmail(value) && value !== "") {
-        //     setEmailError("Invalid email format");
-        // } else {
-        //     setEmailError("");
-        // }
+        if (!validateEmail(value) && value !== "") {
+            setEmailError("Invalid email format");
+        } else {
+            setEmailError("");
+        }
     };
 
     const handlePasswordChange = (e) => {
@@ -52,19 +54,9 @@ const LoginPage = () => {
         setError(null);
 
         try {
-            if (!validateEmail(email)) {
-                const response = await auth.register({
-                    username: email,
-                    password,
-                });
-                if (response.data.user) {
-                    window.location.href = "/";
-                }
-            } else {
-                const response = await auth.login({ email, password });
-                if (response.data.user) {
-                    window.location.href = "/";
-                }
+            const response = await auth.login({ email, password });
+            if (response.data.user) {
+                window.location.href = "/";
             }
         } catch (error) {
             if (error.response) {

@@ -6,12 +6,11 @@ const jwt = require("../utils/jwt");
 const UserController = {
     create: async (req, res) => {
         try {
-            const { fullname, email, username, password, role } = req.body;
+            const { full_name, email, password, role } = req.body;
             let hashedPassword = await bcrypt.hash(password, 10);
             await User.create({
-                fullname,
+                full_name,
                 email,
-                username,
                 password: hashedPassword,
                 role,
             });
@@ -48,18 +47,32 @@ const UserController = {
         }
     },
 
+    get: async (req, res) => {
+        try {
+            const id = req.params.id;
+            const user = await User.findById(id);
+            if (!user) {
+                res.status(404).send("User not found");
+                return;
+            }
+            user.delete("password");
+            res.json(user);
+        } catch (err) {
+            console.error(err);
+            res.status(500).send("Internal Server Error");
+        }
+    },
+
     // auth
     login: async (req, res) => {
         try {
-            const { username, password, email } = req.body;
-            if (!username && !email) {
-                res.status(400).send("Username or email is required");
+            const { email, password } = req.body;
+            if (!email) {
+                res.status(400).send("Email is required");
                 return;
             }
 
-            const user = username
-                ? await User.findByUsername(username)
-                : await User.findByEmail(email);
+            const user = await User.findByEmail(email);
             if (!user) {
                 res.status(404).send("User not found");
                 return;
@@ -76,17 +89,19 @@ const UserController = {
             delete user.created_at;
             const token = await jwt.signAccessToken(user);
             const refreshToken = await jwt.signRefreshToken(user);
-            
-            // Add expiry times
-            const expireTime = new Date().getTime() + 15 * 60 * 1000; // 15 minutes
-            const refreshTokenExpireTime = new Date().getTime() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
-            res.json({ 
-                user, 
-                token, 
+            // Add expiry times
+            // const expireTime = new Date().getTime() + 15 * 60 * 1000; // 15 minutes
+            const expireTime = new Date().getTime() + 60 * 1000; // 30 seconds
+            const refreshTokenExpireTime =
+                new Date().getTime() + 7 * 24 * 60 * 60 * 1000; // 7 days
+
+            res.json({
+                user,
+                token,
                 refreshToken,
                 expireTime,
-                refreshTokenExpireTime 
+                refreshTokenExpireTime,
             });
         } catch (err) {
             console.error(err);
@@ -100,19 +115,19 @@ const UserController = {
             if (!refreshToken) {
                 return res.status(401).send("Refresh token required");
             }
-            
-            const user = jwt.verifyRefreshToken(refreshToken);
-            const newToken = await jwt.signAccessToken(user);
-            const newRefreshToken = await jwt.signRefreshToken(user);
-            
-            const expireTime = new Date().getTime() + 15 * 60 * 1000;
-            const refreshTokenExpireTime = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
 
-            res.json({ 
-                token: newToken, 
-                refreshToken: newRefreshToken,
-                expireTime,
-                refreshTokenExpireTime 
+            const user = await jwt.verifyRefreshToken(refreshToken);
+            const newRefreshToken = await jwt.signRefreshToken(user);
+            const newToken = await jwt.signAccessToken(user);
+
+            const newExpireTime = new Date().getTime() + 1 * 60 * 1000;
+            const newRefreshTokenExpireTime =
+                new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
+            res.json({
+                newToken,
+                newRefreshToken,
+                newExpireTime,
+                newRefreshTokenExpireTime,
             });
         } catch (err) {
             console.error(err);

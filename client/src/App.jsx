@@ -4,13 +4,13 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import LoginPage from "./components/Login";
 import SideBar from "./components/SideBar";
 
-import RoomList from "./components/Rooms/RoomList";
-import RoomView from "./components/Rooms/RoomView";
+import RoomsPage from "./components/Rooms/RoomsPage";
+import RoomDetails from "./components/Rooms/RoomDetails";
 
-import ComputerList from "./components/Computers/ComputersList";
-import ComputerView from "./components/Computers/ComputerView";
+import ComputersPage from "./components/Computers/ComputersPage";
+import ComputerDetails from "./components/Computers/ComputerDetails";
 
-import UserList from "./components/Users/UsersList";
+import UsersPage from "./components/Users/UsersPage";
 
 function App() {
     const [user, setUser] = useState(null);
@@ -34,7 +34,7 @@ function App() {
                                     path='/'
                                     element={
                                         user ? (
-                                            <RoomList user={user} />
+                                            <RoomsPage user={user} />
                                         ) : (
                                             <LoginPage />
                                         )
@@ -43,23 +43,23 @@ function App() {
                                 <Route path='/login' element={<LoginPage />} />
                                 <Route
                                     path='/users'
-                                    element={<UserList user={user} />}
+                                    element={<UsersPage user={user} />}
                                 />
                                 <Route
                                     path='/rooms'
-                                    element={<RoomList user={user} />}
+                                    element={<RoomsPage user={user} />}
                                 />
                                 <Route
                                     path='/rooms/:id'
-                                    element={<RoomView user={user} />}
+                                    element={<RoomDetails user={user} />}
                                 />
                                 <Route
                                     path='/computers'
-                                    element={<ComputerList />}
+                                    element={<ComputersPage user={user} />}
                                 />
                                 <Route
                                     path='/computers/:id'
-                                    element={<ComputerView />}
+                                    element={<ComputerDetails user={user} />}
                                 />
                             </Routes>
                         </div>

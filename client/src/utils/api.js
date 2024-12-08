@@ -16,6 +16,7 @@ api.interceptors.request.use(
     async (config) => {
         const token = localStorage.getItem("token");
         if (!token) {
+            window.location.href = "/login";
             return config;
         }
 
@@ -36,32 +37,33 @@ api.interceptors.request.use(
 
                 try {
                     const refreshToken = localStorage.getItem("refreshToken");
-                    const res = await api.post("/user/auth/refresh", {
+                    const res = await axios.post(`${API_URL}/auth/refresh`, {
                         refreshToken,
                     });
 
                     const {
-                        token,
-                        refreshToken: newRefreshToken,
-                        expireTime,
-                        refreshTokenExpireTime,
+                        newToken,
+                        newRefreshToken,
+                        newExpireTime, // 1 minute
+                        newRefreshTokenExpireTime,
                     } = res.data;
 
-                    localStorage.setItem("token", token);
+                    localStorage.setItem("token", newToken);
                     localStorage.setItem("refreshToken", newRefreshToken);
-                    localStorage.setItem("ret", refreshTokenExpireTime);
-                    localStorage.setItem("et", expireTime);
+                    localStorage.setItem("ret", newRefreshTokenExpireTime);
+                    localStorage.setItem("et", newExpireTime);
 
-                    config.headers.Authorization = `Bearer ${token}`;
+                    config.headers.Authorization = `Bearer ${newToken}`;
 
-                    // Resolve pending requests
-                    refreshSubscribers.forEach((cb) => cb(token));
+                    // Use newToken instead of old token for pending requests
+                    refreshSubscribers.forEach((cb) => cb(newToken));
                     refreshSubscribers = [];
 
                     return config;
                 } catch (err) {
                     localStorage.clear();
                     window.location.href = "/login";
+                    console.error("Failed to refresh token:", err);
                     return Promise.reject(err);
                 } finally {
                     isRefreshing = false;
@@ -91,7 +93,11 @@ export const auth = {
         try {
             console.log("Sending login request with data:", data);
 
-            const res = await api.post("/user/auth/login", data);
+            const res = await axios.post(`${API_URL}/auth/login`, data, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
             console.log("Login response received:", res);
 
             const {
@@ -101,11 +107,6 @@ export const auth = {
                 expireTime,
                 refreshTokenExpireTime,
             } = res.data;
-
-            if (!token || !refreshToken || !user) {
-                console.warn("Missing required fields in response:", res.data);
-                return res;
-            }
 
             localStorage.setItem("token", token);
             localStorage.setItem("refreshToken", refreshToken);
@@ -132,39 +133,49 @@ export const auth = {
 export const users = {
     all: () => api.get("/user"),
     amount: () => api.get("/user/amount"),
-    create: (data) => api.post("/user", data), // user = { fullname, username, email, password, role }
+    create: (data) => api.post("/user", data),
 };
 
 export const rooms = {
     all: () => api.get("/room"),
     amount: () => api.get("/room/amount"),
-    // room = { name, description }
+
+    // room
+    get: (id) => api.get(`/room/${id}`),
     create: (data) => api.post("/room", data),
     update: (data) => api.put(`/room/${data.id}`, data),
     delete: (id) => api.delete(`/room/${id}`),
 
     // computer
-    getComputers: (id) => api.get(`/room/${id}/computers`),
     amountComputers: (id) => api.get(`/room/${id}/amount_computers`),
-    // application = { room_id, application_id, user_id }
+
+    // application
     getComputersInstalled: (data) => api.get("/room/applications", data),
     installApplication: (data) => api.post("/room/applications", data),
 
-    // user = { room_id, user_id }
+    // user
     getUsers: (id) => api.get(`/room/${id}/users`),
     addUser: (data) => api.post("/room/users", data),
-    removeUser: (data) => api.delete("/room/users", data),
+    removeUser: (data) =>
+        api.delete(`/room/${data.room_id}/users`, {
+            data: { user_id: data.user_id },
+        }),
 };
 
 export const computers = {
     all: () => api.get("/computer"),
     amount: () => api.get("/computer/amount"),
+
+    // computer
+    get: (id) => api.get(`/computer/${id}`),
     delete: (id) => api.delete(`/computer/${id}`),
 
+    // monitor
     getProcesses: (id) => api.get(`/computer/${id}/processes`),
     getNetActivities: (id) => api.get(`/computer/${id}/network`),
     getApplications: (id) => api.get(`/computer/${id}/applications`),
-    // application = { id, application_id }
+
+    // manage
     installApplication: (data) =>
         api.post(`/computer/${data.id}/applications`, data),
 };

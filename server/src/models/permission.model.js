@@ -1,4 +1,4 @@
-const {db} = require("../db");
+const { db } = require("../db");
 
 const Permission = {
     create: (permission) => {
@@ -47,8 +47,10 @@ const Permission = {
         return new Promise((resolve, reject) => {
             const sql = `DELETE FROM permissions WHERE user_id = ? AND room_id = ?`;
             db.run(sql, [user_id, room_id], (err) => {
-                if (err) reject(err);
-                else resolve();
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                } else resolve();
             });
         });
     },

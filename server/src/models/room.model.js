@@ -1,11 +1,12 @@
 const { db } = require("../db");
+const { findByRoomAndIndex } = require("./computer.model");
 
 const Room = {
     create: (room) => {
         return new Promise((resolve, reject) => {
-            const { name, description } = room;
-            const sql = `INSERT INTO rooms (name, description) VALUES (?, ?)`;
-            db.run(sql, [name, description], (err) => {
+            const { name, description, row_count, column_count } = room;
+            const sql = `INSERT INTO rooms (name, description, row_count, column_count) VALUES (?, ?, ?, ?)`;
+            db.run(sql, [name, description, row_count, column_count], (err) => {
                 if (err) reject(err);
                 else resolve();
             });
@@ -40,53 +41,69 @@ const Room = {
     },
     update: (room) => {
         return new Promise((resolve, reject) => {
-            const { id, name, description } = room;
-            const sql = `UPDATE rooms SET name = ?, description = ? WHERE id = ?`;
-            db.run(sql, [name, description, id], (err) => {
-                if (err) reject(err);
-                else resolve();
-            });
+            const { id, name, description, row_count, column_count } = room;
+            const sql = `UPDATE rooms SET name = ?, description = ?, row_count = ?, column_count = ? WHERE id = ?`;
+            db.run(
+                sql,
+                [name, description, row_count, column_count, id],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
         });
     },
     delete: (id) => {
         return new Promise((resolve, reject) => {
             // Start a transaction
             db.serialize(() => {
-                db.run('BEGIN TRANSACTION');
-                
+                db.run("BEGIN TRANSACTION");
+
                 // Delete permissions first
-                db.run('DELETE FROM permissions WHERE room_id = ?', [id], (err) => {
-                    if (err) {
-                        db.run('ROLLBACK');
-                        return reject(err);
-                    }
-                    
-                    // Then delete computers
-                    db.run('DELETE FROM computers WHERE room_id = ?', [id], (err) => {
+                db.run(
+                    "DELETE FROM permissions WHERE room_id = ?",
+                    [id],
+                    (err) => {
                         if (err) {
-                            db.run('ROLLBACK');
+                            db.run("ROLLBACK");
                             return reject(err);
                         }
-                        
-                        // Finally delete the room
-                        db.run('DELETE FROM rooms WHERE id = ?', [id], (err) => {
-                            if (err) {
-                                db.run('ROLLBACK');
-                                return reject(err);
+
+                        // Then delete computers
+                        db.run(
+                            "DELETE FROM computers WHERE room_id = ?",
+                            [id],
+                            (err) => {
+                                if (err) {
+                                    db.run("ROLLBACK");
+                                    return reject(err);
+                                }
+
+                                // Finally delete the room
+                                db.run(
+                                    "DELETE FROM rooms WHERE id = ?",
+                                    [id],
+                                    (err) => {
+                                        if (err) {
+                                            db.run("ROLLBACK");
+                                            return reject(err);
+                                        }
+
+                                        db.run("COMMIT");
+                                        resolve();
+                                    }
+                                );
                             }
-                            
-                            db.run('COMMIT');
-                            resolve();
-                        });
-                    });
-                });
+                        );
+                    }
+                );
             });
         });
     },
     // Permissions
     getUsers: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT u.id, u.fullname, u.email, u.username, u.role
+            const sql = `SELECT u.id, u.full_name, u.email, u.role, p.can_view, p.can_manage
                      FROM users u
                      JOIN permissions p ON u.id = p.user_id
                      WHERE p.room_id = ?`;
@@ -99,7 +116,9 @@ const Room = {
     // Computers
     getComputers: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT * FROM computers WHERE room_id = ? ORDER BY index`;
+            const sql = `SELECT computers.id, computers.hostname, computers.ip_address, computers.row_index, computers.column_index,  (heartbeatd_at > datetime('now', '-1 minutes')) as online, (errors IS NOT NULL) as error
+                    FROM computers join heartbeatd_computers on computers.id = heartbeatd_computers.computer_id
+                    WHERE computers.room_id = ?`;
             db.all(sql, [id], (err, rows) => {
                 if (err) reject(err);
                 else resolve(rows);
@@ -108,7 +127,7 @@ const Room = {
     },
     getComputersInstalled: (id, application_id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT c.id, c.index, c.ip_address, c.mac_address, c.hostname, c.notes, c.errors, c.updated_at
+            const sql = `SELECT c.*, ia.installed_at
                      FROM computers c
                      JOIN installed_applications ia ON c.id = ia.computer_id
                      WHERE c.room_id = ? AND ia.application_id = ?`;
