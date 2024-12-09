@@ -11,6 +11,7 @@ import ComputersPage from "./components/Computers/ComputersPage";
 import ComputerDetails from "./components/Computers/ComputerDetails";
 
 import UsersPage from "./components/Users/UsersPage";
+import ApplicationsPage from "./components/Applications/ApplicationsPage";
 
 function App() {
     const [user, setUser] = useState(null);
@@ -60,6 +61,10 @@ function App() {
                                 <Route
                                     path='/computers/:id'
                                     element={<ComputerDetails user={user} />}
+                                />
+                                <Route
+                                    path='/applications'
+                                    element={<ApplicationsPage user={user} />}
                                 />
                             </Routes>
                         </div>

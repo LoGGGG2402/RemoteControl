@@ -33,15 +33,24 @@ def install_chocolatey():
         return False, f"Unexpected error: {str(e)}"
 
 
-def install_package(package_name):
+def install_package(package_name, version=None):
     """Install a package using Chocolatey"""
     try:
         choco_path = get_choco_path()
         if not os.path.exists(choco_path):
             return False, "Chocolatey is not installed. Please install it first."
-        result = subprocess.run(
-            [choco_path, "install", package_name, "-y"], capture_output=True, text=True
-        )
+        if version:
+            result = subprocess.run(
+                [choco_path, "install", package_name, "--version", version, "-y"],
+                capture_output=True,
+                text=True,
+            )
+        else:
+            result = subprocess.run(
+                [choco_path, "install", package_name, "-y"],
+                capture_output=True,
+                text=True,
+            )
         if result.returncode == 0:
             return True, f"Package {package_name} installed successfully"
         return False, f"Error installing package: {result.stderr}"

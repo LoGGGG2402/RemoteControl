@@ -141,8 +141,6 @@ const RoomController = {
                 return;
             }
 
-            let command = "install_application " + application.name;
-
             const installPromises = computers.map(async (computer) => {
                 if (
                     await Computer.isInstalledApplication(
@@ -155,7 +153,11 @@ const RoomController = {
 
                 const response = await sendCommandToComputer(
                     computer.ip_address,
-                    command
+                    "install_application",
+                    {
+                        name: application.name,
+                        version: application.version,
+                     }
                 );
 
                 if (!response) {

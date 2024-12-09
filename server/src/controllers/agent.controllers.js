@@ -6,6 +6,7 @@ const AgentController = {
     connect: async (req, res) => {
         try {
             const {
+                room_name,
                 room_id,
                 row_index,
                 column_index,
@@ -13,8 +14,17 @@ const AgentController = {
                 mac_address,
                 hostname,
             } = req.body;
+            if (!room_id && !room_name) {
+                res.status(400).json({ error: "Room name or id is required" });
+                return;
+            }
 
-            const room = await Room.findById(room_id);
+            let room;
+            if (room_id) {
+                room = await Room.findById(room_id);
+            } else {
+                room = await Room.findByName(room_name);
+            }
 
             if (!room) {
                 res.status(400).json({ error: "Room not found" });
@@ -50,45 +60,45 @@ const AgentController = {
             }
 
             // Update applications list
-            // if (req.body.applications) {
-            //     // Update applications list
-            //     availableApplications = await Application.all();
-            //     installedApplications = await Computer.getApplications(
-            //         computer.id
-            //     );
+            if (req.body.applications) {
+                // Update applications list
+                availableApplications = await Application.all();
+                installedApplications = await Computer.getApplications(
+                    computer.id
+                );
 
-            //     // Add new applications to database
-            //     for (const application of req.body.applications) {
-            //         // Check if application is available
-            //         const availableApplication = availableApplications.find(
-            //             (a) => a.name === application
-            //         );
-            //         if (availableApplication) {
-            //             // Check if application is installed
-            //             const installedApplication = installedApplications.find(
-            //                 (a) => a.name === application
-            //             );
-            //             if (!installedApplication) {
-            //                 // Install application
-            //                 await Computer.installApplication(
-            //                     computer.id,
-            //                     availableApplication.id,
-            //                     "agent"
-            //                 );
-            //             }
-            //         }
-            //     }
+                // Add new applications to database
+                for (const application of req.body.applications) {
+                    // Check if application is available
+                    const availableApplication = availableApplications.find(
+                        (a) => a.name === application
+                    );
+                    if (availableApplication) {
+                        // Check if application is installed
+                        const installedApplication = installedApplications.find(
+                            (a) => a.name === application
+                        );
+                        if (!installedApplication) {
+                            // Install application
+                            await Computer.installApplication(
+                                computer.id,
+                                availableApplication.id,
+                                "agent"
+                            );
+                        }
+                    }
+                }
 
-            //     // Remove uninstalled applications from database
-            //     for (const application of installedApplications) {
-            //         if (!req.body.applications.includes(application.name)) {
-            //             await Computer.removeApplication(
-            //                 computer.id,
-            //                 application.id
-            //             );
-            //         }
-            //     }
-            // }
+                // Remove uninstalled applications from database
+                for (const application of installedApplications) {
+                    if (!req.body.applications.includes(application.name)) {
+                        await Computer.removeApplication(
+                            computer.id,
+                            application.id
+                        );
+                    }
+                }
+            }
 
             res.send({ message: "Connected successfully", id: computerId });
         } catch (err) {

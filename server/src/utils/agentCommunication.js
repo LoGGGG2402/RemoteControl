@@ -1,8 +1,13 @@
 const net = require("net");
 
-const sendCommandToComputer = (ipAddress, command) => {
+const sendCommandToComputer = (ipAddress, commandType, params = {}) => {
     return new Promise((resolve, reject) => {
         const client = new net.Socket();
+        const command = JSON.stringify({
+            type: commandType,
+            params: params
+        });
+
         client.connect(5000, ipAddress, () => {
             client.write(command);
             let data = "";

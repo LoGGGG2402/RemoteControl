@@ -4,9 +4,9 @@ const { findById } = require("./computer.model");
 const Application = {
     create: (application) => {
         return new Promise((resolve, reject) => {
-            const { name, description } = application;
-            const sql = `INSERT INTO applications (name, description) VALUES (?, ?)`;
-            db.run(sql, [name, description], (err) => {
+            const { name, description, version } = application;
+            const sql = `INSERT INTO applications (name, description, version) VALUES (?, ?, ?)`;
+            db.run(sql, [name, description, version], (err) => {
                 if (err) reject(err);
                 else resolve();
             });
@@ -23,7 +23,7 @@ const Application = {
     },
     all: () => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT id, name, description FROM applications`;
+            const sql = `SELECT id, name, description, version FROM applications`;
             db.all(sql, (err, rows) => {
                 if (err) reject(err);
                 else resolve(rows);
@@ -63,6 +63,16 @@ const Application = {
                         });
 
                     });
+            });
+        });
+    },
+    update: (id, application) => {
+        return new Promise((resolve, reject) => {
+            const { description, version } = application;
+            const sql = `UPDATE applications SET description = ?, version = ? WHERE id = ?`;
+            db.run(sql, [description, version, id], (err) => {
+                if (err) reject(err);
+                else resolve();
             });
         });
     },

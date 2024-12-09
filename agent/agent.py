@@ -55,31 +55,39 @@ class RealAgent:
         return config
 
     def handle_command(self, command):
-        if command.startswith("get_process_list"):
-            processes = system_info.get_process_list()
-            return json.dumps({"processes": processes})
+        try:
+            cmd_data = json.loads(command)
+            cmd_type = cmd_data.get('type')
+            cmd_params = cmd_data.get('params', {})
 
-        elif command.startswith("get_network_connections"):
-            connections = system_info.get_network_connections()
-            return json.dumps({"connections": connections})
+            if cmd_type == "get_process_list":
+                processes = system_info.get_process_list()
+                return json.dumps({"processes": processes})
 
-        elif command.startswith("install_application"):
-            app_name = command.split(" ")[1]
-            success, message = choco_handle.install_package(app_name)
-            return json.dumps({"success": success, "message": message})
+            elif cmd_type == "get_network_connections":
+                connections = system_info.get_network_connections()
+                return json.dumps({"connections": connections})
 
-        elif command.startswith("uninstall_application"):
-            app_name = command.split(" ")[1]
-            success, message = choco_handle.uninstall_package(app_name)
-            return json.dumps({"success": success, "message": message})
+            elif cmd_type == "install_application":
+                app_name = cmd_params.get('name')
+                version = cmd_params.get('version')
+                success, message = choco_handle.install_package(app_name, version)
+                return json.dumps({"success": success, "message": message})
 
-        elif command.startswith("list_applications"):
-            success, applications = choco_handle.list_installed_packages()
-            if success and applications:
-                return json.dumps({"applications": applications})
-            return json.dumps({"applications": []})
+            elif cmd_type == "uninstall_application":
+                app_name = cmd_params.get('name')
+                success, message = choco_handle.uninstall_package(app_name)
+                return json.dumps({"success": success, "message": message})
 
-        return json.dumps({"error": "Unknown command"})
+            elif cmd_type == "list_applications":
+                success, applications = choco_handle.list_installed_packages()
+                if success and applications:
+                    return json.dumps({"applications": applications})
+                return json.dumps({"applications": []})
+
+            return json.dumps({"error": "Unknown command"})
+        except json.JSONDecodeError:
+            return json.dumps({"error": "Invalid JSON command"})
 
     def start_command_server(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

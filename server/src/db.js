@@ -79,7 +79,9 @@ const initDatabase = () => {
         db.run(
             `CREATE TABLE IF NOT EXISTS applications (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE
+                name TEXT NOT NULL UNIQUE,
+                description TEXT DEFAULT NULL,
+                version TEXT DEFAULT NULL
             )`
         );
 

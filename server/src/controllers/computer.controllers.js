@@ -66,10 +66,9 @@ const ComputerController = {
                 return;
             }
 
-            const command = "get_process_list";
             const processList = await sendCommandToComputer(
                 computer.ip_address,
-                command
+                "get_process_list"
             );
 
             if (!processList) {
@@ -95,10 +94,9 @@ const ComputerController = {
                 return;
             }
 
-            const command = "get_network_connections";
             const networkConnections = await sendCommandToComputer(
                 computer.ip_address,
-                command
+                "get_network_connections"
             );
 
             if (!networkConnections) {
@@ -152,11 +150,13 @@ const ComputerController = {
                 return;
             }
 
-            const command = "install_application " + application.name;
-
             const response = await sendCommandToComputer(
                 computer.ip_address,
-                command
+                "install_application",
+                {
+                    name: application.name,
+                    version: application.version,
+                 }
             );
 
             if (!response) {

@@ -180,4 +180,11 @@ export const computers = {
         api.post(`/computer/${data.id}/applications`, data),
 };
 
+export const applications = {
+    all: () => api.get("/application"),
+    create: (data) => api.post("/application", data),
+    delete: (id) => api.delete(`/application/${id}`),
+    update: (id, data) => api.put(`/application/${id}`, data),
+};
+
 export default api;

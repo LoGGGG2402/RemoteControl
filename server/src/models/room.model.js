@@ -21,6 +21,16 @@ const Room = {
             });
         });
     },
+    findByName: (name) => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT * FROM rooms WHERE name = ?`;
+            db.get(sql, [name], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        }
+        );
+    },
     all: () => {
         return new Promise((resolve, reject) => {
             const sql = `SELECT id, name, description FROM rooms`;
@@ -113,6 +123,7 @@ const Room = {
             });
         });
     },
+    
     // Computers
     getComputers: (id) => {
         return new Promise((resolve, reject) => {
@@ -127,7 +138,7 @@ const Room = {
     },
     getComputersInstalled: (id, application_id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT c.*, ia.installed_at
+            const sql = `SELECT c.id, c.row_index, c.column_index, ia.installed_at
                      FROM computers c
                      JOIN installed_applications ia ON c.id = ia.computer_id
                      WHERE c.room_id = ? AND ia.application_id = ?`;
@@ -138,6 +149,7 @@ const Room = {
         });
     },
 
+    // Computers amount
     amountComputers: (id) => {
         return new Promise((resolve, reject) => {
             const sql = `SELECT COUNT(*) AS amount FROM computers WHERE room_id = ?`;

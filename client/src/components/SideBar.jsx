@@ -6,6 +6,7 @@ import {
     FaSignInAlt,
     FaUsers,
     FaGithub, // Added for footer
+    FaBox, // Add this import
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { auth, users, computers, rooms } from "../utils/api";
@@ -65,6 +66,11 @@ const SideBar = ({ user }) => {
                   icon: FaUsers,
                   key: "users",
                   count: amountOfUsers,
+              },
+              user.role === "admin" && {
+                  name: "Applications",
+                  icon: FaBox,
+                  key: "applications",
               },
               // { name: "Settings", icon: FaCog, key: "settings" },
               { name: "Logout", icon: FaSignOutAlt, key: "logout" },
