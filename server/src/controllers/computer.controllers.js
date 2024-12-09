@@ -196,8 +196,10 @@ const ComputerController = {
                 });
             }
 
-            if (response.error) {
-                return res.status(400).json({ error: response.error });
+            const { success, message } = response;
+
+            if (!success) {
+                return res.status(400).json({ error: message });
             }
 
             await Computer.installApplication(id, application_id, req.user.id);
@@ -247,8 +249,10 @@ const ComputerController = {
                 });
             }
 
-            if (response.error) {
-                return res.status(400).json({ error: response.error });
+            const { success, message } = response;
+
+            if (!success) {
+                return res.status(400).json({ error: message });
             }
 
             await Computer.removeApplication(id, application_id);
@@ -279,6 +283,19 @@ const ComputerController = {
             res.status(200).send("Computer updated");
         } catch (err) {
             console.error(err);
+            res.status(500).send("Internal Server Error");
+        }
+    },
+
+    updateNotesAndErrors: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { notes, errors } = req.body;
+
+            await Computer.updateNotesAndErrors(id, notes, errors);
+            res.status(200).send("Notes and errors updated successfully");
+        } catch (err) {
+            console.error("Error updating notes and errors:", err);
             res.status(500).send("Internal Server Error");
         }
     },

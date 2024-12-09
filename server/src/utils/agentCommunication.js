@@ -5,7 +5,7 @@ const sendCommandToComputer = (ipAddress, commandType, params = {}) => {
         const client = new net.Socket();
         const command = JSON.stringify({
             type: commandType,
-            params: params
+            params: params,
         });
 
         client.connect(5000, ipAddress, () => {

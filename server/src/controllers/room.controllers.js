@@ -180,7 +180,7 @@ const RoomController = {
                         row_index: computer.row_index,
                         column_index: computer.column_index,
                     };
-                } else if (response.error) {
+                } else if (!response.success) {
                     return {
                         computer_id: computer.id,
                         success: false,

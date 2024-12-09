@@ -41,7 +41,7 @@ def install_package(package_name, version=None):
             return False, "Chocolatey is not installed. Please install it first."
         if version:
             result = subprocess.run(
-                [choco_path, "install", package_name, "--version", version, "-y"],
+                [choco_path, "install", package_name, "--version", version, "-y", "-r"],
                 capture_output=True,
                 text=True,
             )
@@ -74,6 +74,7 @@ def uninstall_package(package_name):
             if success and package_name in list_package:
                 return False, f"Error uninstalling package: {result.stderr}"
             return True, f"Package {package_name} uninstalled successfully"
+
         return False, f"Error uninstalling package: {result.stderr}"
     except subprocess.CalledProcessError as e:
         return False, f"Error: {str(e)}"
@@ -110,13 +111,13 @@ if __name__ == "__main__":
     success, packages = list_installed_packages()
     print(f"Success: {success}, Packages: {packages}")
 
-    success, message = install_package("notepadplusplus")
+    success, message = install_package("googlechrome")
     print(f"Success: {success}, Message: {message}")
 
     success, packages = list_installed_packages()
     print(f"Success: {success}, Packages: {packages}")
 
-    success, message = uninstall_package("notepadplusplus")
+    success, message = uninstall_package("googlechrome")
     print(f"Success: {success}, Message: {message}")
 
     success, packages = list_installed_packages()

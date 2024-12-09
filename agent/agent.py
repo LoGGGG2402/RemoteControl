@@ -116,12 +116,12 @@ class RealAgent:
             else:
                 show_warning("Application List Warning", application_list)
 
+        print("Get Application List is", application_list, success)
+
         try:
             response = requests.post(
                 f"{self.api_url}/connect",
-                json=system_info.get_system_info(
-                    self.room_id, self.row_index, self.column_index
-                ),
+                json=sys_info,
             )
             data = response.json()
             if "error" in data:

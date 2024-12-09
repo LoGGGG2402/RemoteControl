@@ -49,4 +49,10 @@ router.delete(
     ComputerController.uninstallApplication
 );
 
+router.put(
+    "/:id/notes-errors",
+    permissionMiddleware("manage", "computer"),
+    ComputerController.updateNotesAndErrors
+);
+
 module.exports = router;

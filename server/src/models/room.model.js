@@ -28,8 +28,7 @@ const Room = {
                 if (err) reject(err);
                 else resolve(row);
             });
-        }
-        );
+        });
     },
     all: () => {
         return new Promise((resolve, reject) => {
@@ -123,11 +122,11 @@ const Room = {
             });
         });
     },
-    
+
     // Computers
     getComputers: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT computers.id, computers.hostname, computers.ip_address, computers.row_index, computers.column_index,  (heartbeatd_at > datetime('now', '-1 minutes')) as online, (errors IS NOT NULL) as error
+            const sql = `SELECT computers.id, computers.hostname, computers.ip_address, computers.row_index, computers.column_index,  (heartbeatd_at > datetime('now', '-1 minutes')) as online, (errors IS NOT NULL AND errors != '') as error
                     FROM computers join heartbeatd_computers on computers.id = heartbeatd_computers.computer_id
                     WHERE computers.room_id = ?`;
             db.all(sql, [id], (err, rows) => {
@@ -161,7 +160,7 @@ const Room = {
     },
     amountErrors: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT COUNT(*) AS amount FROM computers WHERE room_id = ? AND errors IS NOT NULL`;
+            const sql = `SELECT COUNT(*) AS amount FROM computers WHERE room_id = ? AND errors IS NOT NULL AND errors != ''`;
             db.get(sql, [id], (err, row) => {
                 if (err) reject(err);
                 else resolve(row.amount);
@@ -170,7 +169,9 @@ const Room = {
     },
     amountOnline: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT COUNT(*) AS amount FROM computers WHERE room_id = ? AND updated_at >= datetime('now', '-10 minutes')`;
+            const sql = `SELECT COUNT(*) AS amount 
+                        FROM computers join heartbeatd_computers on computers.id = heartbeatd_computers.computer_id
+                        WHERE room_id = ? AND heartbeatd_at > datetime('now', '-1 minutes')`;
             db.get(sql, [id], (err, row) => {
                 if (err) reject(err);
                 else resolve(row.amount);

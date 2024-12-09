@@ -59,11 +59,11 @@ const AgentController = {
                 });
             }
 
+            console.log(req.body.applications);
+
             // Update applications list
             if (req.body.applications) {
                 // Update applications list
-
-                console.log("Updating applications list");
                 availableApplications = await Application.all();
                 installedApplications = await Computer.getApplications(
                     computerId

@@ -21,6 +21,7 @@ import {
     FaSync,
     FaMapMarkerAlt,
     FaThLarge,
+    FaEdit,
 } from "react-icons/fa";
 
 const ComputerDetails = () => {
@@ -40,6 +41,10 @@ const ComputerDetails = () => {
     const [appsLoading, setAppsLoading] = useState(false);
     const [uninstalling, setUninstalling] = useState(false);
     const [uninstallError, setUninstallError] = useState(null);
+    const [editing, setEditing] = useState(false);
+    const [editNotes, setEditNotes] = useState("");
+    const [editErrors, setEditErrors] = useState("");
+    const [updateError, setUpdateError] = useState(null);
 
     useEffect(() => {
         const init = async () => {
@@ -48,6 +53,13 @@ const ComputerDetails = () => {
         };
         init();
     }, [id]);
+
+    useEffect(() => {
+        if (computer) {
+            setEditNotes(computer.notes || "");
+            setEditErrors(computer.errors || "");
+        }
+    }, [computer]);
 
     const loadComputerData = async () => {
         try {
@@ -173,6 +185,20 @@ const ComputerDetails = () => {
         }
     };
 
+    const handleUpdateNotesAndErrors = async () => {
+        try {
+            await computers.updateNotesAndErrors(id, {
+                notes: editNotes,
+                errors: editErrors,
+            });
+            await loadComputerData(); // Refresh computer data
+            setEditing(false);
+            setUpdateError(null);
+        } catch (err) {
+            setUpdateError(err.response?.data || "Failed to update notes and errors");
+        }
+    };
+
     const handleTabClick = (tab) => {
         setActiveTab(tab);
         if (tab === "processes" && processes.length === 0) {
@@ -288,32 +314,90 @@ const ComputerDetails = () => {
                                 </div>
                             </div>
                         </div>
-                        {computer.notes && (
-                            <div className='flex items-center gap-3'>
-                                <FaStickyNote className='text-gray-500' />
-                                <div>
-                                    <p className='text-sm text-gray-500'>
-                                        Notes
-                                    </p>
-                                    <p className='font-medium'>
-                                        {computer.notes}
-                                    </p>
+                        <div className='space-y-4'>
+                            {editing ? (
+                                <div className='space-y-4 bg-gray-50 p-4 rounded-lg'>
+                                    <div>
+                                        <label className='block text-sm font-medium text-gray-700'>Notes</label>
+                                        <textarea
+                                            value={editNotes}
+                                            onChange={(e) => setEditNotes(e.target.value)}
+                                            className='mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                                            rows={3}
+                                            placeholder="Add notes about this computer..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-gray-700'>Errors</label>
+                                        <textarea
+                                            value={editErrors}
+                                            onChange={(e) => setEditErrors(e.target.value)}
+                                            className='mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
+                                            rows={3}
+                                            placeholder="Record any errors..."
+                                        />
+                                    </div>
+                                    <div className='flex gap-2'>
+                                        <button
+                                            onClick={handleUpdateNotesAndErrors}
+                                            className='px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600'
+                                        >
+                                            Save Changes
+                                        </button>
+                                        <button
+                                            onClick={() => setEditing(false)}
+                                            className='px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600'
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                        {computer.errors && (
-                            <div className='flex items-center gap-3'>
-                                <FaExclamationTriangle className='text-red-500' />
-                                <div>
-                                    <p className='text-sm text-red-500'>
-                                        Errors
-                                    </p>
-                                    <p className='font-medium text-red-600'>
-                                        {computer.errors}
-                                    </p>
+                            ) : (
+                                <div className='space-y-4'>
+                                    <div>
+                                        <div className='flex items-center justify-between mb-2'>
+                                            <h3 className='text-lg font-medium flex items-center gap-2'>
+                                                <FaStickyNote className='text-blue-500' />
+                                                Notes & Issues
+                                            </h3>
+                                            <button
+                                                onClick={() => setEditing(true)}
+                                                className='px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 flex items-center gap-1'
+                                            >
+                                                <FaEdit />
+                                                Edit
+                                            </button>
+                                        </div>
+                                        <div className='space-y-4'>
+                                            <div className='bg-gray-50 p-4 rounded-lg'>
+                                                <h4 className='text-sm font-medium text-gray-700 mb-2'>Notes</h4>
+                                                {computer.notes ? (
+                                                    <p className='text-gray-600 whitespace-pre-line'>{computer.notes}</p>
+                                                ) : (
+                                                    <p className='text-gray-400 italic'>No notes added</p>
+                                                )}
+                                            </div>
+                                            
+                                            {computer.errors && (
+                                                <div className='bg-red-50 p-4 rounded-lg border border-red-200'>
+                                                    <h4 className='text-sm font-medium text-red-700 mb-2 flex items-center gap-2'>
+                                                        <FaExclamationTriangle />
+                                                        Reported Errors
+                                                    </h4>
+                                                    <p className='text-red-600 whitespace-pre-line'>{computer.errors}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {updateError && (
+                                        <div className='text-red-500 text-sm flex items-center gap-1'>
+                                            <FaExclamationTriangle />
+                                            {updateError}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                         <div className='flex items-center gap-3'>
                             <FaSync className='text-gray-500' />
                             <div>
@@ -383,13 +467,23 @@ const ComputerDetails = () => {
                 </div>
 
                 <div className='p-6'>
-                    {activeTab === "processes" &&
-                        (processesLoading ? (
+                    {activeTab === "processes" && (
+                        processesLoading ? (
                             <div className='flex items-center justify-center p-4'>
                                 <FaSpinner className='animate-spin text-2xl text-blue-500' />
                             </div>
                         ) : (
                             <div className='overflow-x-auto'>
+                                <div className='mb-4 flex justify-end'>
+                                    <button
+                                        onClick={loadProcesses}
+                                        disabled={processesLoading || !computer.online}
+                                        className='flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300'
+                                    >
+                                        <FaSync className={processesLoading ? 'animate-spin' : ''} />
+                                        Refresh Processes
+                                    </button>
+                                </div>
                                 <table className='min-w-full divide-y divide-gray-200'>
                                     <thead>
                                         <tr>
@@ -502,15 +596,26 @@ const ComputerDetails = () => {
                                     </tbody>
                                 </table>
                             </div>
-                        ))}
+                        )
+                    )}
 
-                    {activeTab === "network" &&
-                        (networkLoading ? (
+                    {activeTab === "network" && (
+                        networkLoading ? (
                             <div className='flex items-center justify-center p-4'>
                                 <FaSpinner className='animate-spin text-2xl text-blue-500' />
                             </div>
                         ) : (
                             <div className='overflow-x-auto'>
+                                <div className='mb-4 flex justify-end'>
+                                    <button
+                                        onClick={loadNetworkActivities}
+                                        disabled={networkLoading || !computer.online}
+                                        className='flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300'
+                                    >
+                                        <FaSync className={networkLoading ? 'animate-spin' : ''} />
+                                        Refresh Network Activities
+                                    </button>
+                                </div>
                                 <table className='min-w-full divide-y divide-gray-200'>
                                     <thead>
                                         <tr>
@@ -574,7 +679,8 @@ const ComputerDetails = () => {
                                     </tbody>
                                 </table>
                             </div>
-                        ))}
+                        )
+                    )}
 
                     {activeTab === "applications" &&
                         (appsLoading ? (

@@ -80,7 +80,7 @@ const Computer = {
     },
     all: () => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT *, (heartbeatd_at > datetime('now', '-1 minutes')) as online, (errors IS NOT NULL) as error
+            const sql = `SELECT *, (heartbeatd_at > datetime('now', '-1 minutes')) as online, (errors IS NOT NULL AND errors != '') as error
                             FROM computers JOIN heartbeatd_computers ON computers.id = heartbeatd_computers.computer_id`;
             db.all(sql, (err, rows) => {
                 if (err) reject(err);
@@ -99,7 +99,7 @@ const Computer = {
     },
     amountErrors: () => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT COUNT(*) AS amount FROM computers WHERE errors IS NOT NULL`;
+            const sql = `SELECT COUNT(*) AS amount FROM computers WHERE errors IS NOT NULL AND errors != ''`;
             db.get(sql, (err, row) => {
                 if (err) reject(err);
                 else resolve(row.amount);
@@ -261,6 +261,16 @@ const Computer = {
             db.get(sql, [id], (err, row) => {
                 if (err) reject(err);
                 else resolve(row ? row.online === 1 : false);
+            });
+        });
+    },
+
+    updateNotesAndErrors: (id, notes, errors) => {
+        return new Promise((resolve, reject) => {
+            const sql = `UPDATE computers SET notes = ?, errors = ?, updated_at = datetime('now') WHERE id = ?`;
+            db.run(sql, [notes, errors, id], (err) => {
+                if (err) reject(err);
+                else resolve();
             });
         });
     },

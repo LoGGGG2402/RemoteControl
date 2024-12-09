@@ -184,6 +184,9 @@ export const computers = {
         api.delete(`/computer/${computerId}/applications`, {
             data: { application_id: applicationId },
         }),
+
+    updateNotesAndErrors: (id, data) => 
+        api.put(`/computer/${id}/notes-errors`, data),
 };
 
 export const applications = {
