@@ -1,61 +1,91 @@
-import socket
+import os
 import json
+import socket
 import time
-import random
 import threading
-# import psutil
-
+import platform
+import choco_handle
 import requests
+import system_info
+import sys
+from agent_ui import SetupDialog, show_error, show_warning, show_info
 
-class FakeAgent:
+
+class RealAgent:
     def __init__(self):
-        self.server_host = 'localhost'
-        self.server_port = 5000
-        self.api_url = 'http://localhost:3000/api/agent'
-        self.computer_id = None
-        self.room_id = 6  # Fake room ID
-        self.row_index = 1  # Fake position
-        self.column_index = 1  # Fake position
-        self.applications = ['Chrome', 'Firefox', 'VSCode', 'Spotify']
+        if platform.system() != "Windows":
+            show_error("System Error", "This agent only runs on Windows systems.")
+            sys.exit(1)
 
-    def get_system_info(self):
-        return {
-            'room_id': self.room_id,
-            'row_index': self.row_index,
-            'column_index': self.column_index,
-            'ip_address': '192.168.1.100',
-            'mac_address': '00:11:22:33:44:55',
-            'hostname': 'fake-computer',
-            'applications': self.applications
-        }
+        self.server_host = "localhost"
+        self.server_port = 3000
+        self.computer_id = None
+        self.config = self.load_or_create_config()
+        self.api_url = f"http://{self.config['server_ip']}:3000/api/agent"
+        self.room_id = self.config["room_id"]
+        self.row_index = self.config["row_index"]
+        self.column_index = self.config["column_index"]
+
+    def load_or_create_config(self):
+        config_dir = os.path.join(os.getenv("APPDATA"), "RemoteControl")
+        if not os.path.exists(config_dir):
+
+            # Install Chocolatey for first time setup
+            success, message = choco_handle.install_chocolatey()
+            if not success:
+                show_error("Installation Error", f"Failed to install Chocolatey: {message}")
+                sys.exit(1)
+            show_info("Installation Status", message)
+            os.makedirs(config_dir)
+        config_path = os.path.join(config_dir, "agent_config.json")
+
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                return json.load(f)
+
+        print("First time setup required...")
+        dialog = SetupDialog()
+        config = dialog.get_result()
+        if not config:
+            sys.exit(1)
+
+        with open(config_path, "w") as f:
+            json.dump(config, f)
+
+        return config
 
     def handle_command(self, command):
-        if command.startswith('get_process_list'):
-            processes = [{'name': f'process_{i}', 'pid': i} for i in range(5)]
-            return json.dumps({'processes': processes})
-        
-        elif command.startswith('get_network_connections'):
-            connections = [
-                {'local': f'192.168.1.100:{random.randint(1000,9999)}', 
-                 'remote': f'172.16.0.{random.randint(1,255)}:80',
-                 'state': 'ESTABLISHED'} 
-                for _ in range(3)
-            ]
-            return json.dumps({'connections': connections})
-        
-        elif command.startswith('install_application'):
-            app_name = command.split(' ')[1]
-            if app_name not in self.applications:
-                self.applications.append(app_name)
-            return json.dumps({'success': True, 'message': f'Installed {app_name}'})
+        if command.startswith("get_process_list"):
+            processes = system_info.get_process_list()
+            return json.dumps({"processes": processes})
 
-        return json.dumps({'error': 'Unknown command'})
+        elif command.startswith("get_network_connections"):
+            connections = system_info.get_network_connections()
+            return json.dumps({"connections": connections})
+
+        elif command.startswith("install_application"):
+            app_name = command.split(" ")[1]
+            success, message = choco_handle.install_package(app_name)
+            return json.dumps({"success": success, "message": message})
+
+        elif command.startswith("uninstall_application"):
+            app_name = command.split(" ")[1]
+            success, message = choco_handle.uninstall_package(app_name)
+            return json.dumps({"success": success, "message": message})
+
+        elif command.startswith("list_applications"):
+            success, applications = choco_handle.list_installed_packages()
+            if success and applications:
+                return json.dumps({"applications": applications})
+            return json.dumps({"applications": []})
+
+        return json.dumps({"error": "Unknown command"})
 
     def start_command_server(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.bind(('0.0.0.0', 5000))
+        server.bind(("0.0.0.0", 5000))
         server.listen(1)
-        
+
         while True:
             client, addr = server.accept()
             data = client.recv(1024).decode()
@@ -64,52 +94,69 @@ class FakeAgent:
             client.close()
 
     def connect_to_server(self):
+        sys_info = system_info.get_system_info(
+            self.room_id, self.row_index, self.column_index
+        )
+
+        success, application_list = choco_handle.list_installed_packages()
+        if success:
+            if type(application_list) == list:
+                sys_info["applications"] = application_list
+            else:
+                show_warning("Application List Warning", application_list)
+
         try:
             response = requests.post(
-                f'{self.api_url}/connect',
-                json=self.get_system_info()
+                f"{self.api_url}/connect",
+                json=system_info.get_system_info(
+                    self.room_id, self.row_index, self.column_index
+                ),
             )
-            print(response.text)
             data = response.json()
-            if 'error' in data:
-                print(f"Connection failed: {data['error']}")
+            if "error" in data:
+                show_error("Connection Error", data["error"])
                 return False
-            self.computer_id = data['id']
+            self.computer_id = data["id"]
             print(f"Connected successfully. Computer ID: {self.computer_id}")
             return True
         except Exception as e:
-            print(f"Connection failed: {e}")
+            show_error("Connection Error", str(e))
             return False
 
     def send_heartbeat(self):
         while True:
             try:
                 response = requests.post(
-                    f'{self.api_url}/heartbeat',
-                    json={'computer_id': self.computer_id}
+                    f"{self.api_url}/heartbeat", json={"computer_id": self.computer_id}
                 )
                 print("Heartbeat sent successfully")
             except Exception as e:
-                print(f"Heartbeat failed: {e}")
-            
-            time.sleep(30)  # Send heartbeat every 30 seconds
+                show_warning("Heartbeat Warning", str(e))
+
+            time.sleep(30)
 
     def run(self):
         if self.connect_to_server():
-            # Start command server in a separate thread
-            # cmd_thread = threading.Thread(target=self.start_command_server)
-            # cmd_thread.daemon = True
-            # cmd_thread.start()
+            cmd_thread = threading.Thread(target=self.start_command_server)
+            cmd_thread.daemon = True
+            cmd_thread.start()
 
-            # Start heartbeat in a separate thread
             heartbeat_thread = threading.Thread(target=self.send_heartbeat)
             heartbeat_thread.daemon = True
             heartbeat_thread.start()
 
-            # Keep main thread alive
             while True:
                 time.sleep(1)
 
+
 if __name__ == "__main__":
-    agent = FakeAgent()
-    agent.run()
+    agent = RealAgent()
+    # agent.run()
+    # test all commands in handle_command
+    # print(agent.handle_command("get_process_list"))
+    # print(agent.handle_command("get_network_connections"))
+    print(agent.handle_command("install_application notepadplusplus"))
+    print(agent.handle_command("list_applications"))
+    print(agent.handle_command("uninstall_application notepadplusplus"))
+    print(agent.handle_command("list_applications"))
+    print(agent.handle_command("unknown_command"))
