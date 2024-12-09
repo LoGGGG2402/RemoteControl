@@ -1,6 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { FaDesktop, FaNetworkWired, FaList, FaTerminal, FaCircle, FaMapMarkerAlt, FaExclamationTriangle } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import {
+    FaDesktop,
+    FaNetworkWired,
+    FaList,
+    FaTerminal,
+    FaCircle,
+    FaMapMarkerAlt,
+    FaExclamationTriangle,
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const ComputerCard = ({ computer }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -18,6 +26,15 @@ const ComputerCard = ({ computer }) => {
     const handleCardClick = () => {
         if (computer?.id) {
             navigate(`/computers/${computer.id}`);
+        }
+    };
+
+    const handleButtonClick = (tab) => (e) => {
+        e.stopPropagation(); // Prevent card click
+        if (computer?.id) {
+            navigate(`/computers/${computer.id}`, {
+                state: { activeTab: tab },
+            });
         }
     };
 
@@ -51,7 +68,7 @@ const ComputerCard = ({ computer }) => {
                             <h3 className='font-medium text-sm'>{hostname}</h3>
                             <div className='flex items-center gap-1 text-xs text-gray-500'>
                                 <FaMapMarkerAlt className='w-3 h-3' />
-                                {computer.room_name || 'Unassigned Room'}
+                                {computer.room_name || "Unassigned Room"}
                             </div>
                         </div>
                     </div>
@@ -64,7 +81,9 @@ const ComputerCard = ({ computer }) => {
                     </div>
                     <div className='flex items-center gap-1'>
                         <FaNetworkWired className='w-3 h-3 text-gray-400' />
-                        <span className='text-gray-600 text-[11px]'>{mac_address}</span>
+                        <span className='text-gray-600 text-[11px]'>
+                            {mac_address}
+                        </span>
                     </div>
                     {notes && (
                         <div className='text-gray-500 text-[11px] italic'>
@@ -82,22 +101,47 @@ const ComputerCard = ({ computer }) => {
 
             {isHovered && (
                 <div className='grid grid-cols-3 gap-1 w-full mt-3 pt-3 border-t'>
-                    <button className='flex flex-col items-center p-2 hover:bg-gray-50 rounded border text-xs gap-1'>
+                    <button
+                        className='flex flex-col items-center p-2 hover:bg-gray-50 rounded border text-xs gap-1'
+                        onClick={handleButtonClick("applications")}
+                    >
+                        <FaTerminal className='text-gray-400 text-sm' />
+                        <span>Apps</span>
+                    </button>
+                    <button
+                        className={`flex flex-col items-center p-2 rounded border text-xs gap-1 ${
+                            !isOnline
+                                ? "opacity-50 cursor-not-allowed"
+                                : "hover:bg-gray-50"
+                        }`}
+                        onClick={
+                            isOnline
+                                ? handleButtonClick("processes")
+                                : undefined
+                        }
+                        disabled={!isOnline}
+                    >
                         <FaList className='text-gray-400 text-sm' />
                         <span>Tasks</span>
                     </button>
-                    <button className='flex flex-col items-center p-2 hover:bg-gray-50 rounded border text-xs gap-1'>
+                    <button
+                        className={`flex flex-col items-center p-2 rounded border text-xs gap-1 ${
+                            !isOnline
+                                ? "opacity-50 cursor-not-allowed"
+                                : "hover:bg-gray-50"
+                        }`}
+                        onClick={
+                            isOnline ? handleButtonClick("network") : undefined
+                        }
+                        disabled={!isOnline}
+                    >
                         <FaNetworkWired className='text-gray-400 text-sm' />
                         <span>Network</span>
-                    </button>
-                    <button className='flex flex-col items-center p-2 hover:bg-gray-50 rounded border text-xs gap-1'>
-                        <FaTerminal className='text-gray-400 text-sm' />
-                        <span>Apps</span>
                     </button>
                 </div>
             )}
         </div>
     );
-}
+};
 
 export default ComputerCard;

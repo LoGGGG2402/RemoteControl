@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { computers, applications as appsApi } from "../../utils/api";
 import {
     FaServer,
@@ -26,12 +26,14 @@ import {
 
 const ComputerDetails = () => {
     const { id } = useParams();
+    const location = useLocation();
+    const initialTab = location.state?.activeTab || "applications";
     const [computer, setComputer] = useState(null);
     const [processes, setProcesses] = useState([]);
     const [networkActivities, setNetworkActivities] = useState([]);
     const [applications, setApplications] = useState([]);
     const [availableApps, setAvailableApps] = useState([]);
-    const [activeTab, setActiveTab] = useState("applications"); // Changed default tab
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [installing, setInstalling] = useState(false);
@@ -49,10 +51,18 @@ const ComputerDetails = () => {
     useEffect(() => {
         const init = async () => {
             await loadComputerData();
-            await loadApplicationsData(); // Load applications data on mount
+
+            // Load data based on initial tab
+            if (initialTab === "applications") {
+                await loadApplicationsData();
+            } else if (initialTab === "processes") {
+                await loadProcesses();
+            } else if (initialTab === "network") {
+                await loadNetworkActivities();
+            }
         };
         init();
-    }, [id]);
+    }, [id, initialTab]);
 
     useEffect(() => {
         if (computer) {
@@ -195,7 +205,9 @@ const ComputerDetails = () => {
             setEditing(false);
             setUpdateError(null);
         } catch (err) {
-            setUpdateError(err.response?.data || "Failed to update notes and errors");
+            setUpdateError(
+                err.response?.data || "Failed to update notes and errors"
+            );
         }
     };
 
@@ -318,23 +330,31 @@ const ComputerDetails = () => {
                             {editing ? (
                                 <div className='space-y-4 bg-gray-50 p-4 rounded-lg'>
                                     <div>
-                                        <label className='block text-sm font-medium text-gray-700'>Notes</label>
+                                        <label className='block text-sm font-medium text-gray-700'>
+                                            Notes
+                                        </label>
                                         <textarea
                                             value={editNotes}
-                                            onChange={(e) => setEditNotes(e.target.value)}
+                                            onChange={(e) =>
+                                                setEditNotes(e.target.value)
+                                            }
                                             className='mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
                                             rows={3}
-                                            placeholder="Add notes about this computer..."
+                                            placeholder='Add notes about this computer...'
                                         />
                                     </div>
                                     <div>
-                                        <label className='block text-sm font-medium text-gray-700'>Errors</label>
+                                        <label className='block text-sm font-medium text-gray-700'>
+                                            Errors
+                                        </label>
                                         <textarea
                                             value={editErrors}
-                                            onChange={(e) => setEditErrors(e.target.value)}
+                                            onChange={(e) =>
+                                                setEditErrors(e.target.value)
+                                            }
                                             className='mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500'
                                             rows={3}
-                                            placeholder="Record any errors..."
+                                            placeholder='Record any errors...'
                                         />
                                     </div>
                                     <div className='flex gap-2'>
@@ -370,21 +390,29 @@ const ComputerDetails = () => {
                                         </div>
                                         <div className='space-y-4'>
                                             <div className='bg-gray-50 p-4 rounded-lg'>
-                                                <h4 className='text-sm font-medium text-gray-700 mb-2'>Notes</h4>
+                                                <h4 className='text-sm font-medium text-gray-700 mb-2'>
+                                                    Notes
+                                                </h4>
                                                 {computer.notes ? (
-                                                    <p className='text-gray-600 whitespace-pre-line'>{computer.notes}</p>
+                                                    <p className='text-gray-600 whitespace-pre-line'>
+                                                        {computer.notes}
+                                                    </p>
                                                 ) : (
-                                                    <p className='text-gray-400 italic'>No notes added</p>
+                                                    <p className='text-gray-400 italic'>
+                                                        No notes added
+                                                    </p>
                                                 )}
                                             </div>
-                                            
+
                                             {computer.errors && (
                                                 <div className='bg-red-50 p-4 rounded-lg border border-red-200'>
                                                     <h4 className='text-sm font-medium text-red-700 mb-2 flex items-center gap-2'>
                                                         <FaExclamationTriangle />
                                                         Reported Errors
                                                     </h4>
-                                                    <p className='text-red-600 whitespace-pre-line'>{computer.errors}</p>
+                                                    <p className='text-red-600 whitespace-pre-line'>
+                                                        {computer.errors}
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
@@ -467,8 +495,8 @@ const ComputerDetails = () => {
                 </div>
 
                 <div className='p-6'>
-                    {activeTab === "processes" && (
-                        processesLoading ? (
+                    {activeTab === "processes" &&
+                        (processesLoading ? (
                             <div className='flex items-center justify-center p-4'>
                                 <FaSpinner className='animate-spin text-2xl text-blue-500' />
                             </div>
@@ -477,10 +505,18 @@ const ComputerDetails = () => {
                                 <div className='mb-4 flex justify-end'>
                                     <button
                                         onClick={loadProcesses}
-                                        disabled={processesLoading || !computer.online}
+                                        disabled={
+                                            processesLoading || !computer.online
+                                        }
                                         className='flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300'
                                     >
-                                        <FaSync className={processesLoading ? 'animate-spin' : ''} />
+                                        <FaSync
+                                            className={
+                                                processesLoading
+                                                    ? "animate-spin"
+                                                    : ""
+                                            }
+                                        />
                                         Refresh Processes
                                     </button>
                                 </div>
@@ -596,11 +632,10 @@ const ComputerDetails = () => {
                                     </tbody>
                                 </table>
                             </div>
-                        )
-                    )}
+                        ))}
 
-                    {activeTab === "network" && (
-                        networkLoading ? (
+                    {activeTab === "network" &&
+                        (networkLoading ? (
                             <div className='flex items-center justify-center p-4'>
                                 <FaSpinner className='animate-spin text-2xl text-blue-500' />
                             </div>
@@ -609,10 +644,18 @@ const ComputerDetails = () => {
                                 <div className='mb-4 flex justify-end'>
                                     <button
                                         onClick={loadNetworkActivities}
-                                        disabled={networkLoading || !computer.online}
+                                        disabled={
+                                            networkLoading || !computer.online
+                                        }
                                         className='flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300'
                                     >
-                                        <FaSync className={networkLoading ? 'animate-spin' : ''} />
+                                        <FaSync
+                                            className={
+                                                networkLoading
+                                                    ? "animate-spin"
+                                                    : ""
+                                            }
+                                        />
                                         Refresh Network Activities
                                     </button>
                                 </div>
@@ -679,8 +722,7 @@ const ComputerDetails = () => {
                                     </tbody>
                                 </table>
                             </div>
-                        )
-                    )}
+                        ))}
 
                     {activeTab === "applications" &&
                         (appsLoading ? (
