@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { rooms } from "../../utils/api";
+import { rooms, applications as appsApi } from "../../utils/api";
 import {
     FaSpinner,
     FaDesktop,
     FaCircle,
     FaMapMarkerAlt,
     FaUsers,
+    FaDownload,
+    FaFilter,
 } from "react-icons/fa";
 import ComputerCard from "./ComputerCard";
 import UserManagementModal from "./UserManagementModal";
@@ -23,20 +25,30 @@ const RoomDetails = ({ user }) => {
     });
     const [usersList, setUsersList] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedApp, setSelectedApp] = useState(null);
+    const [availableApps, setAvailableApps] = useState([]);
+    const [installedComputers, setInstalledComputers] = useState([]);
+    const [installing, setInstalling] = useState(false);
+    const [installError, setInstallError] = useState(null);
+    const [installationResults, setInstallationResults] = useState({});
 
-    const generatePlaceholders = (row_count, column_count, existingComputers) => {
+    const generatePlaceholders = (
+        row_count,
+        column_count,
+        existingComputers
+    ) => {
         const placeholders = [];
         for (let row = 0; row < row_count; row++) {
             for (let col = 0; col < column_count; col++) {
                 // Check if there's a computer at this position
                 const hasComputer = existingComputers?.some(
-                    c => c.row_index === row && c.column_index === col
+                    (c) => c.row_index === row && c.column_index === col
                 );
                 if (!hasComputer) {
                     placeholders.push({
                         row_index: row,
                         column_index: col,
-                        isPlaceholder: true
+                        isPlaceholder: true,
                     });
                 }
             }
@@ -79,9 +91,82 @@ const RoomDetails = ({ user }) => {
         fetchUsers();
     }, [id]);
 
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [appsRes] = await Promise.all([appsApi.all()]);
+                setAvailableApps(appsRes.data);
+            } catch (err) {
+                console.error("Failed to fetch applications:", err);
+            }
+        };
+        fetchData();
+    }, []);
+
+    useEffect(() => {
+        // remove the previous installation results when changing the selected app
+        setInstallationResults({});
+        setInstallError(null);
+        setInstalledComputers([]);
+
+        const fetchInstalledComputers = async () => {
+            if (!selectedApp) return;
+            try {
+                const response = await rooms.getComputersInstalled({
+                    room_id: id,
+                    application_id: selectedApp,
+                });
+                setInstalledComputers(response.data);
+            } catch (err) {
+                console.error("Failed to fetch installed computers:", err);
+            }
+        };
+        fetchInstalledComputers();
+    }, [selectedApp, id]);
+
     const handleUsersUpdate = async () => {
         const response = await rooms.getUsers(id);
         setUsersList(response.data || []);
+    };
+
+    const handleInstallApp = async () => {
+        if (
+            !selectedApp ||
+            !window.confirm(
+                "Install application on all computers in this room?"
+            )
+        )
+            return;
+
+        setInstalling(true);
+        setInstallError(null);
+        try {
+            const resp = await rooms.installApplication({
+                room_id: id,
+                application_id: selectedApp,
+                user_id: user.id,
+            });
+
+            // Store results mapped by computer_id
+            const resultsMap = resp.data.reduce((acc, result) => {
+                acc[result.computer_id] = result;
+                return acc;
+            }, {});
+            setInstallationResults(resultsMap);
+
+            // Refresh installed computers list
+            const response = await rooms.getComputersInstalled({
+                room_id: id,
+                application_id: selectedApp,
+            });
+            setInstalledComputers(response.data);
+        } catch (err) {
+            setInstallError(
+                err.response?.data || "Failed to install application"
+            );
+        } finally {
+            setInstalling(false);
+        }
     };
 
     if (loading) {
@@ -144,7 +229,39 @@ const RoomDetails = ({ user }) => {
                 </div>
             </div>
 
-            <div className='bg-white p-6 rounded-lg shadow-md mb-6 hover:shadow-lg transition-shadow'>
+            <div className='bg-white p-6 rounded-lg shadow-md mb-6'>
+                <div className='flex items-center gap-4 mb-4'>
+                    <select
+                        className='border rounded p-2 flex-grow'
+                        value={selectedApp || ""}
+                        onChange={(e) => setSelectedApp(e.target.value || null)}
+                    >
+                        <option value=''>Filter by application...</option>
+                        {availableApps.map((app) => (
+                            <option key={app.id} value={app.id}>
+                                {app.name}
+                            </option>
+                        ))}
+                    </select>
+                    {selectedApp && (
+                        <button
+                            onClick={handleInstallApp}
+                            disabled={installing}
+                            className='bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center gap-2 disabled:bg-gray-400'
+                        >
+                            {installing ? (
+                                <FaSpinner className='animate-spin' />
+                            ) : (
+                                <FaDownload />
+                            )}
+                            Install on All
+                        </button>
+                    )}
+                </div>
+                {installError && (
+                    <div className='text-red-500 mb-4'>{installError}</div>
+                )}
+
                 <div
                     className='grid gap-3 border rounded-lg p-4 relative bg-gray-50'
                     style={{
@@ -153,9 +270,22 @@ const RoomDetails = ({ user }) => {
                     }}
                 >
                     {[
-                        ...(room.computers || []).map(c => ({ ...c, isPlaceholder: false })),
-                        ...generatePlaceholders(room.row_count, room.column_count, room.computers)
-                    ].map((computer, index) => (
+                        ...(room.computers || []).map((c) => ({
+                            ...c,
+                            isPlaceholder: false,
+                            hasSelectedApp: installedComputers.some(
+                                (ic) => ic.id === c.id
+                            ),
+                            installationDate: installedComputers.find(
+                                (ic) => ic.id === c.id
+                            )?.installed_at,
+                        })),
+                        ...generatePlaceholders(
+                            room.row_count,
+                            room.column_count,
+                            room.computers
+                        ),
+                    ].map((computer) => (
                         <div
                             key={`${computer.row_index}-${computer.column_index}`}
                             className='aspect-square border rounded-md relative bg-white hover:bg-gray-50 transition-all hover:shadow-md'
@@ -168,6 +298,11 @@ const RoomDetails = ({ user }) => {
                                 computer={computer}
                                 isPlaceholder={computer.isPlaceholder}
                                 position={`PC${computer.row_index}-${computer.column_index}`}
+                                installationResult={
+                                    !computer.isPlaceholder
+                                        ? installationResults[computer.id]
+                                        : null
+                                }
                             />
                         </div>
                     ))}

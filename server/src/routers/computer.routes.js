@@ -43,4 +43,10 @@ router.post(
     ComputerController.installApplication
 );
 
+router.delete(
+    "/:id/applications",
+    permissionMiddleware("manage", "computer"),
+    ComputerController.uninstallApplication
+);
+
 module.exports = router;

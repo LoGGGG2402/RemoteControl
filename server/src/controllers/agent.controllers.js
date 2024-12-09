@@ -62,9 +62,11 @@ const AgentController = {
             // Update applications list
             if (req.body.applications) {
                 // Update applications list
+
+                console.log("Updating applications list");
                 availableApplications = await Application.all();
                 installedApplications = await Computer.getApplications(
-                    computer.id
+                    computerId
                 );
 
                 // Add new applications to database
@@ -81,9 +83,9 @@ const AgentController = {
                         if (!installedApplication) {
                             // Install application
                             await Computer.installApplication(
-                                computer.id,
+                                computerId,
                                 availableApplication.id,
-                                "agent"
+                                1
                             );
                         }
                     }
@@ -93,7 +95,7 @@ const AgentController = {
                 for (const application of installedApplications) {
                     if (!req.body.applications.includes(application.name)) {
                         await Computer.removeApplication(
-                            computer.id,
+                            computerId,
                             application.id
                         );
                     }

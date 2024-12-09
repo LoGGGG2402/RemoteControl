@@ -119,7 +119,7 @@ const RoomController = {
 
     getComputersInstalled: async (req, res) => {
         try {
-            const { room_id, application_id } = req.body;
+            const { id: room_id, application_id } = req.params;
             const computers = await Room.getComputersInstalled(
                 room_id,
                 application_id
@@ -133,10 +133,13 @@ const RoomController = {
 
     installApplication: async (req, res) => {
         try {
-            const { room_id, application_id, user_id } = req.body;
+            const { id: room_id, application_id } = req.params;
+            // console.log(room_id, application_id);
+            const user_id = req.user.id;
             const computers = await Room.getComputers(room_id);
             const application = await Application.findById(application_id);
-            if (!computers || !applications) {
+
+            if (!computers || !application) {
                 res.status(400).send("Room or application not found");
                 return;
             }
@@ -151,27 +154,39 @@ const RoomController = {
                     return null;
                 }
 
+                if (!computer.online) {
+                    return {
+                        computer_id: computer.id,
+                        success: false,
+                        message: "Computer is offline",
+                        row_index: computer.row_index,
+                        column_index: computer.column_index,
+                    };
+                }
                 const response = await sendCommandToComputer(
                     computer.ip_address,
                     "install_application",
                     {
                         name: application.name,
                         version: application.version,
-                     }
+                    }
                 );
 
                 if (!response) {
                     return {
                         computer_id: computer.id,
                         success: false,
-                        message:
-                            "Unable to install application on the computer",
+                        message: "Can't connect to computer.",
+                        row_index: computer.row_index,
+                        column_index: computer.column_index,
                     };
                 } else if (response.error) {
                     return {
                         computer_id: computer.id,
                         success: false,
                         message: response.message,
+                        row_index: computer.row_index,
+                        column_index: computer.column_index,
                     };
                 }
 
@@ -184,13 +199,14 @@ const RoomController = {
                     computer_id: computer.id,
                     success: true,
                     message: "Application installed successfully",
+                    row_index: computer.row_index,
+                    column_index: computer.column_index,
                 };
             });
 
             const results = (await Promise.all(installPromises)).filter(
                 (result) => result !== null
             );
-
             res.json(results);
         } catch (err) {
             console.error(err);

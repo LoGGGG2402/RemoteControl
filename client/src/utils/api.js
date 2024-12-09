@@ -150,8 +150,10 @@ export const rooms = {
     amountComputers: (id) => api.get(`/room/${id}/amount_computers`),
 
     // application
-    getComputersInstalled: (data) => api.get("/room/applications", data),
-    installApplication: (data) => api.post("/room/applications", data),
+    getComputersInstalled: (data) =>
+        api.get(`/room/${data.room_id}/applications/${data.application_id}`),
+    installApplication: (data) =>
+        api.post(`/room/${data.room_id}/applications/${data.application_id}`),
 
     // user
     getUsers: (id) => api.get(`/room/${id}/users`),
@@ -178,6 +180,10 @@ export const computers = {
     // manage
     installApplication: (data) =>
         api.post(`/computer/${data.id}/applications`, data),
+    uninstallApplication: (computerId, applicationId) =>
+        api.delete(`/computer/${computerId}/applications`, {
+            data: { application_id: applicationId },
+        }),
 };
 
 export const applications = {

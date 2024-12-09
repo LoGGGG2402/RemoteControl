@@ -1,4 +1,5 @@
 const Computer = require("../models/computer.model");
+const Application = require("../models/application.model");
 
 const { sendCommandToComputer } = require("../utils/agentCommunication");
 
@@ -66,6 +67,13 @@ const ComputerController = {
                 return;
             }
 
+            const isOnline = await Computer.isOnline(id);
+            if (!isOnline) {
+                return res.status(503).json({
+                    error: "Computer is offline. Please try again when it's online.",
+                });
+            }
+
             const processList = await sendCommandToComputer(
                 computer.ip_address,
                 "get_process_list"
@@ -92,6 +100,13 @@ const ComputerController = {
             if (!computer) {
                 res.status(404).send("Computer not found");
                 return;
+            }
+
+            const isOnline = await Computer.isOnline(id);
+            if (!isOnline) {
+                return res.status(503).json({
+                    error: "Computer is offline. Please try again when it's online.",
+                });
             }
 
             const networkConnections = await sendCommandToComputer(
@@ -137,7 +152,23 @@ const ComputerController = {
             const { application_id } = req.body;
             const computer = await Computer.findById(id);
 
-            if (Computer.isInstalledApplication(id, application_id)) {
+            if (!computer) {
+                res.status(404).send("Computer not found");
+                return;
+            }
+
+            const isOnline = await Computer.isOnline(id);
+            if (!isOnline) {
+                return res.status(503).json({
+                    error: "Computer is offline. Installation requires the computer to be online.",
+                });
+            }
+
+            is_installed = await Computer.isInstalledApplication(
+                id,
+                application_id
+            );
+            if (is_installed) {
                 return res
                     .status(400)
                     .json({ error: "Application already installed" });
@@ -156,7 +187,7 @@ const ComputerController = {
                 {
                     name: application.name,
                     version: application.version,
-                 }
+                }
             );
 
             if (!response) {
@@ -177,6 +208,58 @@ const ComputerController = {
         }
     },
 
+    uninstallApplication: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { application_id } = req.body;
+            const computer = await Computer.findById(id);
+
+            if (!computer) {
+                res.status(404).send("Computer not found");
+                return;
+            }
+
+            const isOnline = await Computer.isOnline(id);
+            if (!isOnline) {
+                return res.status(503).json({
+                    error: "Computer is offline. Uninstallation requires the computer to be online.",
+                });
+            }
+
+            const application = await Application.findById(application_id);
+
+            if (!computer || !application) {
+                res.status(400).send("Computer or application not found");
+                return;
+            }
+
+            const response = await sendCommandToComputer(
+                computer.ip_address,
+                "uninstall_application",
+                {
+                    name: application.name,
+                }
+            );
+
+            if (!response) {
+                return res.status(503).json({
+                    error: "Unable to uninstall application from the computer",
+                });
+            }
+
+            if (response.error) {
+                return res.status(400).json({ error: response.error });
+            }
+
+            await Computer.removeApplication(id, application_id);
+            res.status(204).send();
+        } catch (error) {
+            console.error("Error uninstalling application:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    },
+
+    // agent communication
     update: async (req, res) => {
         try {
             const { room_id, row_index, column_index } = req.params;

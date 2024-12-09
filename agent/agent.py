@@ -33,7 +33,9 @@ class RealAgent:
             # Install Chocolatey for first time setup
             success, message = choco_handle.install_chocolatey()
             if not success:
-                show_error("Installation Error", f"Failed to install Chocolatey: {message}")
+                show_error(
+                    "Installation Error", f"Failed to install Chocolatey: {message}"
+                )
                 sys.exit(1)
             show_info("Installation Status", message)
             os.makedirs(config_dir)
@@ -55,10 +57,11 @@ class RealAgent:
         return config
 
     def handle_command(self, command):
+        print(f"Received command: {command}")
         try:
             cmd_data = json.loads(command)
-            cmd_type = cmd_data.get('type')
-            cmd_params = cmd_data.get('params', {})
+            cmd_type = cmd_data.get("type")
+            cmd_params = cmd_data.get("params", {})
 
             if cmd_type == "get_process_list":
                 processes = system_info.get_process_list()
@@ -69,13 +72,13 @@ class RealAgent:
                 return json.dumps({"connections": connections})
 
             elif cmd_type == "install_application":
-                app_name = cmd_params.get('name')
-                version = cmd_params.get('version')
+                app_name = cmd_params.get("name")
+                version = cmd_params.get("version")
                 success, message = choco_handle.install_package(app_name, version)
                 return json.dumps({"success": success, "message": message})
 
             elif cmd_type == "uninstall_application":
-                app_name = cmd_params.get('name')
+                app_name = cmd_params.get("name")
                 success, message = choco_handle.uninstall_package(app_name)
                 return json.dumps({"success": success, "message": message})
 
@@ -137,7 +140,6 @@ class RealAgent:
                 response = requests.post(
                     f"{self.api_url}/heartbeat", json={"computer_id": self.computer_id}
                 )
-                print("Heartbeat sent successfully")
             except Exception as e:
                 show_warning("Heartbeat Warning", str(e))
 
@@ -159,12 +161,4 @@ class RealAgent:
 
 if __name__ == "__main__":
     agent = RealAgent()
-    # agent.run()
-    # test all commands in handle_command
-    # print(agent.handle_command("get_process_list"))
-    # print(agent.handle_command("get_network_connections"))
-    print(agent.handle_command("install_application notepadplusplus"))
-    print(agent.handle_command("list_applications"))
-    print(agent.handle_command("uninstall_application notepadplusplus"))
-    print(agent.handle_command("list_applications"))
-    print(agent.handle_command("unknown_command"))
+    agent.run()

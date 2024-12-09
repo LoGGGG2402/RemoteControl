@@ -12,10 +12,10 @@ class FakeAgent:
         self.server_port = 5000
         self.api_url = "http://localhost:3000/api/agent"
         self.computer_id = None
-        self.room_id = 6  # Fake room ID
-        self.row_index = 1  # Fake position
-        self.column_index = 1  # Fake position
-        self.applications = ["Chrome", "Firefox", "VSCode", "Spotify"]
+        self.room_id = 1  # Fake room ID
+        self.row_index = 2  # Fake position
+        self.column_index = 2  # Fake position
+        self.applications = ["notepadplusplus", "vscode"]
 
     def get_system_info(self):
         return {
@@ -96,9 +96,9 @@ class FakeAgent:
     def run(self):
         if self.connect_to_server():
             # Start command server in a separate thread
-            cmd_thread = threading.Thread(target=self.start_command_server)
-            cmd_thread.daemon = True
-            cmd_thread.start()
+            # cmd_thread = threading.Thread(target=self.start_command_server)
+            # cmd_thread.daemon = True
+            # cmd_thread.start()
 
             # Start heartbeat in a separate thread
             heartbeat_thread = threading.Thread(target=self.send_heartbeat)

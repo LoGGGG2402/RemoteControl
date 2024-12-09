@@ -44,10 +44,13 @@ const Computer = {
                         db.run("COMMIT", (err) => {
                             if (err) reject(err);
                             else {
-                                db.get("SELECT last_insert_rowid() as id", (err, row) => {
-                                    if (err) reject(err);
-                                    else resolve(row.id);
-                                });
+                                db.get(
+                                    "SELECT last_insert_rowid() as id",
+                                    (err, row) => {
+                                        if (err) reject(err);
+                                        else resolve(row.id);
+                                    }
+                                );
                             }
                         });
                     });
@@ -57,7 +60,9 @@ const Computer = {
     },
     findById: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT * FROM computers WHERE id = ?`;
+            const sql = `SELECT *, (heartbeatd_at > datetime('now', '-1 minutes')) as online
+                        FROM computers JOIN heartbeatd_computers ON computers.id = heartbeatd_computers.computer_id
+                        WHERE id = ?`;
             db.get(sql, [id], (err, row) => {
                 if (err) reject(err);
                 else resolve(row);
@@ -166,17 +171,21 @@ const Computer = {
                                 return reject(err);
                             }
 
-                            db.run("DELETE FROM computers WHERE id = ?", [id], (err) => {
-                                if (err) {
-                                    db.run("ROLLBACK");
-                                    return reject(err);
-                                }
+                            db.run(
+                                "DELETE FROM computers WHERE id = ?",
+                                [id],
+                                (err) => {
+                                    if (err) {
+                                        db.run("ROLLBACK");
+                                        return reject(err);
+                                    }
 
-                                db.run("COMMIT", (err) => {
-                                    if (err) reject(err);
-                                    else resolve();
-                                });
-                            });
+                                    db.run("COMMIT", (err) => {
+                                        if (err) reject(err);
+                                        else resolve();
+                                    });
+                                }
+                            );
                         }
                     );
                 }
@@ -226,7 +235,9 @@ const Computer = {
                          WHERE computer_id = ? AND application_id = ?`;
             db.get(sql, [computer_id, application_id], (err, row) => {
                 if (err) reject(err);
-                else resolve(row.amount > 0);
+                else {
+                    resolve(row.amount > 0);
+                }
             });
         });
     },
@@ -238,6 +249,18 @@ const Computer = {
             db.run(sql, [computer_id], (err) => {
                 if (err) reject(err);
                 else resolve();
+            });
+        });
+    },
+
+    isOnline: (id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT (heartbeatd_at > datetime('now', '-1 minutes')) as online 
+                        FROM heartbeatd_computers 
+                        WHERE computer_id = ?`;
+            db.get(sql, [id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row ? row.online === 1 : false);
             });
         });
     },

@@ -39,13 +39,13 @@ router.get(
 );
 
 router.get(
-    "/applications",
+    "/:id/applications/:application_id",
     permissionMiddleware("view", "room"),
     RoomController.getComputersInstalled
 );
 
 router.post(
-    "/applications",
+    "/:id/applications/:application_id",
     permissionMiddleware("manage", "room"),
     RoomController.installApplication
 );

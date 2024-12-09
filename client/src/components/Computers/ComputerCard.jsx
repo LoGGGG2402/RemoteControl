@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaDesktop, FaNetworkWired, FaList, FaTerminal, FaCircle, FaMapMarkerAlt, FaExclamationTriangle } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const ComputerCard = ({ computer }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [isOnline, setIsOnline] = useState(false);
     const [isError, setIsError] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (computer) {
@@ -13,13 +15,20 @@ const ComputerCard = ({ computer }) => {
         }
     }, [computer]);
 
+    const handleCardClick = () => {
+        if (computer?.id) {
+            navigate(`/computers/${computer.id}`);
+        }
+    };
+
     const { hostname, ip_address, mac_address, notes, errors } = computer || {};
 
     return (
         <div
-            className='bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between h-full'
+            className='bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between h-full cursor-pointer'
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
+            onClick={handleCardClick}
         >
             <div className='flex flex-col gap-2'>
                 <div className='flex items-start justify-between'>
