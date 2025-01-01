@@ -9,12 +9,14 @@ import {
     FaExclamationTriangle,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { useWebSocket } from '../../contexts/WebSocketContext';
 
 const ComputerCard = ({ computer }) => {
     const [isHovered, setIsHovered] = useState(false);
-    const [isOnline, setIsOnline] = useState(false);
+    const [isOnline, setIsOnline] = useState(computer.online);
     const [isError, setIsError] = useState(false);
     const navigate = useNavigate();
+    const { socket } = useWebSocket();
 
     useEffect(() => {
         if (computer) {
@@ -23,6 +25,27 @@ const ComputerCard = ({ computer }) => {
         }
     }, [computer]);
 
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleComputerStatus = (data) => {
+            try {
+                const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+                if (parsedData.type === 'computer_status' && parsedData.computer_id === computer.id) {
+                    setIsOnline(parsedData.online);
+                }
+            } catch (error) {
+                console.error('Error handling computer status:', error);
+            }
+        };
+
+        socket.addEventListener('message', handleComputerStatus);
+
+        return () => {
+            socket.removeEventListener('message', handleComputerStatus);
+        };
+    }, [socket, computer.id]);
+
     const handleCardClick = () => {
         if (computer?.id) {
             navigate(`/computers/${computer.id}`);
@@ -30,7 +53,7 @@ const ComputerCard = ({ computer }) => {
     };
 
     const handleButtonClick = (tab) => (e) => {
-        e.stopPropagation(); // Prevent card click
+        e.stopPropagation();
         if (computer?.id) {
             navigate(`/computers/${computer.id}`, {
                 state: { activeTab: tab },
@@ -42,7 +65,7 @@ const ComputerCard = ({ computer }) => {
 
     return (
         <div
-            className='bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between h-full cursor-pointer'
+            className={`bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between h-full cursor-pointer`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onClick={handleCardClick}
@@ -140,6 +163,10 @@ const ComputerCard = ({ computer }) => {
                     </button>
                 </div>
             )}
+
+            <div className="status-indicator">
+                {isOnline ? 'Online' : 'Offline'}
+            </div>
         </div>
     );
 };

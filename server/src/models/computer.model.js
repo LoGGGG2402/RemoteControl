@@ -1,4 +1,5 @@
 const { db } = require("../db");
+const { computerClients } = require('../utils/agentCommunication');
 
 const Computer = {
     create: (computer) => {
@@ -60,12 +61,14 @@ const Computer = {
     },
     findById: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT *, (heartbeatd_at > datetime('now', '-1 minutes')) as online
-                        FROM computers JOIN heartbeatd_computers ON computers.id = heartbeatd_computers.computer_id
-                        WHERE id = ?`;
+            const sql = `SELECT * FROM computers WHERE id = ?`;
             db.get(sql, [id], (err, row) => {
                 if (err) reject(err);
-                else resolve(row);
+                else if (row) {
+                    row.online = computerClients.has(row.id.toString());
+                    resolve(row);
+                }
+                else resolve(null);
             });
         });
     },
@@ -80,11 +83,17 @@ const Computer = {
     },
     all: () => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT *, (heartbeatd_at > datetime('now', '-1 minutes')) as online, (errors IS NOT NULL AND errors != '') as error
-                            FROM computers JOIN heartbeatd_computers ON computers.id = heartbeatd_computers.computer_id`;
+            const sql = `SELECT *, (errors IS NOT NULL AND errors != '') as error
+                        FROM computers`;
             db.all(sql, (err, rows) => {
                 if (err) reject(err);
-                else resolve(rows);
+                else {
+                    rows = rows.map(row => ({
+                        ...row,
+                        online: computerClients.has(row.id.toString())
+                    }));
+                    resolve(rows);
+                }
             });
         });
     },
@@ -108,12 +117,7 @@ const Computer = {
     },
     amountOnline: () => {
         return new Promise((resolve, reject) => {
-            // offline = updated_at < now - 10 minutes
-            const sql = `SELECT COUNT(*) AS amount FROM heartbeatd_computers WHERE heartbeatd_at > datetime('now', '-5 minutes')`;
-            db.get(sql, (err, row) => {
-                if (err) reject(err);
-                else resolve(row.amount);
-            });
+            resolve(computerClients.size);
         });
     },
     update: (computer) => {
@@ -255,13 +259,7 @@ const Computer = {
 
     isOnline: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT (heartbeatd_at > datetime('now', '-1 minutes')) as online 
-                        FROM heartbeatd_computers 
-                        WHERE computer_id = ?`;
-            db.get(sql, [id], (err, row) => {
-                if (err) reject(err);
-                else resolve(row ? row.online === 1 : false);
-            });
+            resolve(computerClients.has(id.toString()));
         });
     },
 

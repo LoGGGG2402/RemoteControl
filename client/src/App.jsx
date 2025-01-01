@@ -13,6 +13,8 @@ import ComputerDetails from "./components/Computers/ComputerDetails";
 import UsersPage from "./components/Users/UsersPage";
 import ApplicationsPage from "./components/Applications/ApplicationsPage";
 
+import { WebSocketProvider } from './contexts/WebSocketContext';
+
 function App() {
     const [user, setUser] = useState(null);
 
@@ -24,7 +26,7 @@ function App() {
     }, []);
 
     return (
-        <>
+        <WebSocketProvider>
             <Router>
                 <div className='min-h-screen bg-gray-100 flex'>
                     <SideBar user={user} />
@@ -71,7 +73,7 @@ function App() {
                     </div>
                 </div>
             </Router>
-        </>
+        </WebSocketProvider>
     );
 }
 

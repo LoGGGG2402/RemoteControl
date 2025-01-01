@@ -1,5 +1,6 @@
 const { db } = require("../db");
 const { findByRoomAndIndex } = require("./computer.model");
+const { computerClients } = require('../utils/agentCommunication');
 
 const Room = {
     create: (room) => {
@@ -126,12 +127,18 @@ const Room = {
     // Computers
     getComputers: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT computers.id, computers.hostname, computers.ip_address, computers.row_index, computers.column_index,  (heartbeatd_at > datetime('now', '-1 minutes')) as online, (errors IS NOT NULL AND errors != '') as error
-                    FROM computers join heartbeatd_computers on computers.id = heartbeatd_computers.computer_id
-                    WHERE computers.room_id = ?`;
+            const sql = `SELECT computers.*, (errors IS NOT NULL AND errors != '') as error
+                        FROM computers 
+                        WHERE computers.room_id = ?`;
             db.all(sql, [id], (err, rows) => {
                 if (err) reject(err);
-                else resolve(rows);
+                else {
+                    rows = rows.map(row => ({
+                        ...row,
+                        online: computerClients.has(row.id.toString())
+                    }));
+                    resolve(rows);
+                }
             });
         });
     },
@@ -169,12 +176,15 @@ const Room = {
     },
     amountOnline: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT COUNT(*) AS amount 
-                        FROM computers join heartbeatd_computers on computers.id = heartbeatd_computers.computer_id
-                        WHERE room_id = ? AND heartbeatd_at > datetime('now', '-1 minutes')`;
-            db.get(sql, [id], (err, row) => {
+            const sql = `SELECT id FROM computers WHERE room_id = ?`;
+            db.all(sql, [id], (err, rows) => {
                 if (err) reject(err);
-                else resolve(row.amount);
+                else {
+                    const onlineCount = rows.filter(row => 
+                        computerClients.has(row.id.toString())
+                    ).length;
+                    resolve(onlineCount);
+                }
             });
         });
     },

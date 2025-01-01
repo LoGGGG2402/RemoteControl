@@ -92,7 +92,7 @@ const ComputerDetails = () => {
         }
         try {
             const res = await computers.getProcesses(id);
-            setProcesses(res.data.processList.processes || []);
+            setProcesses(res.data.processList.data || []);
         } catch (err) {
             setError(err.response?.data || "Failed to load processes");
         } finally {
@@ -109,7 +109,7 @@ const ComputerDetails = () => {
         }
         try {
             const res = await computers.getNetActivities(id);
-            setNetworkActivities(res.data.networkConnections.connections || []);
+            setNetworkActivities(res.data.networkConnections.data || []);
         } catch (err) {
             setError(err.response?.data || "Failed to load network activities");
         } finally {

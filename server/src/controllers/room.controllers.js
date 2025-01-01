@@ -134,7 +134,6 @@ const RoomController = {
     installApplication: async (req, res) => {
         try {
             const { id: room_id, application_id } = req.params;
-            // console.log(room_id, application_id);
             const user_id = req.user.id;
             const computers = await Room.getComputers(room_id);
             const application = await Application.findById(application_id);
@@ -145,12 +144,7 @@ const RoomController = {
             }
 
             const installPromises = computers.map(async (computer) => {
-                if (
-                    await Computer.isInstalledApplication(
-                        computer.id,
-                        application_id
-                    )
-                ) {
+                if (await Computer.isInstalledApplication(computer.id, application_id)) {
                     return null;
                 }
 
@@ -163,8 +157,9 @@ const RoomController = {
                         column_index: computer.column_index,
                     };
                 }
+
                 const response = await sendCommandToComputer(
-                    computer.ip_address,
+                    computer.id,
                     "install_application",
                     {
                         name: application.name,
@@ -190,11 +185,7 @@ const RoomController = {
                     };
                 }
 
-                await Computer.installApplication(
-                    computer.id,
-                    application_id,
-                    user_id
-                );
+                await Computer.installApplication(computer.id, application_id, user_id);
                 return {
                     computer_id: computer.id,
                     success: true,

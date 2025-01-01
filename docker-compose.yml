@@ -1,0 +1,14 @@
+services:
+  app:
+    image: node:latest             # Sử dụng Node.js bản mới nhất
+    container_name: remote_desktop        # Tên container
+    working_dir: /usr/src/app      # Thư mục làm việc trong container
+    volumes:
+      - ~/Documents/VScode/RemoteControl:/usr/src/app
+    ports:
+      - "3000:3000"                # Cổng cho backend (Express) và WebSocket
+      - "5173:5173"                # Cổng cho frontend (Vite)
+    environment:
+      - NODE_ENV=development       # Biến môi trường
+      - VITE_HOST=0.0.0.0         # Cho phép Vite lắng nghe trên mọi interface
+    command: sh -c "npm install && cd client && npm install && cd ../server && npm install && cd .. && npm run dev" # Lệnh chạy

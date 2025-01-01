@@ -75,7 +75,7 @@ const ComputerController = {
             }
 
             const processList = await sendCommandToComputer(
-                computer.ip_address,
+                id,
                 "get_process_list"
             );
 
@@ -110,7 +110,7 @@ const ComputerController = {
             }
 
             const networkConnections = await sendCommandToComputer(
-                computer.ip_address,
+                id,
                 "get_network_connections"
             );
 
@@ -182,7 +182,7 @@ const ComputerController = {
             }
 
             const response = await sendCommandToComputer(
-                computer.ip_address,
+                id,
                 "install_application",
                 {
                     name: application.name,
@@ -236,7 +236,7 @@ const ComputerController = {
             }
 
             const response = await sendCommandToComputer(
-                computer.ip_address,
+                id,
                 "uninstall_application",
                 {
                     name: application.name,
