@@ -1,5 +1,6 @@
 const Computer = require("../models/computer.model");
 const Application = require("../models/application.model");
+const { db } = require("../db");
 
 const { sendCommandToComputer } = require("../utils/agentCommunication");
 
@@ -39,20 +40,6 @@ const ComputerController = {
             res.json({ amount, amount_error, amount_online });
         } catch (err) {
             console.error(err);
-            res.status(500).send("Internal Server Error");
-        }
-    },
-
-    delete: async (req, res) => {
-        try {
-            const id = req.params.id;
-            await Computer.delete(id);
-            res.status(204).send();
-        } catch (err) {
-            console.error("Error deleting computer:", err);
-            if (err.code === "SQLITE_CONSTRAINT") {
-                res.status(400).send("Computer is in use");
-            }
             res.status(500).send("Internal Server Error");
         }
     },
@@ -287,18 +274,73 @@ const ComputerController = {
         }
     },
 
-    updateNotesAndErrors: async (req, res) => {
+    updateNotes: async (req, res) => {
         try {
             const { id } = req.params;
-            const { notes, errors } = req.body;
+            const { notes } = req.body;
 
-            await Computer.updateNotesAndErrors(id, notes, errors);
-            res.status(200).send("Notes and errors updated successfully");
+            await Computer.updateNotes(id, notes);
+            res.status(200).send("Notes updated successfully");
         } catch (err) {
-            console.error("Error updating notes and errors:", err);
+            console.error("Error updating notes:", err);
             res.status(500).send("Internal Server Error");
         }
     },
+
+    addError: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { error_type, description } = req.body;
+
+            if (!['hardware', 'software', 'network', 'system', 'security', 'peripheral'].includes(error_type)) {
+                return res.status(400).json({
+                    error: "Invalid error type"
+                });
+            }
+
+            await Computer.addError(id, error_type, description);
+            res.status(201).send("Error added successfully");
+        } catch (err) {
+            console.error("Error adding computer error:", err);
+            res.status(500).send("Internal Server Error");
+        }
+    },
+
+    resolveError: async (req, res) => {
+        try {
+            const { id, error_id } = req.params;
+            await Computer.resolveError(error_id);
+            res.status(200).send("Error resolved successfully");
+        } catch (err) {
+            console.error("Error resolving computer error:", err);
+            res.status(500).send("Internal Server Error");
+        }
+    },
+
+    getErrors: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const computer = await Computer.findById(id);
+
+            if (!computer) {
+                res.status(404).send("Computer not found");
+                return;
+            }
+
+            const sql = `SELECT * FROM computer_errors WHERE computer_id = ? ORDER BY created_at DESC`;
+            db.all(sql, [id], (err, rows) => {
+                if (err) {
+                    console.error("Error getting computer errors:", err);
+                    res.status(500).json({ error: "Internal server error" });
+                } else {
+                    res.json(rows);
+                }
+            });
+        } catch (error) {
+            console.error("Error getting computer errors:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    }
 };
 
 module.exports = ComputerController;

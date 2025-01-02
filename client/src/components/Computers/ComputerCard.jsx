@@ -13,15 +13,14 @@ import { useWebSocket } from '../../contexts/WebSocketContext';
 
 const ComputerCard = ({ computer }) => {
     const [isHovered, setIsHovered] = useState(false);
-    const [isOnline, setIsOnline] = useState(computer.online);
-    const [isError, setIsError] = useState(false);
+    const [isOnline, setIsOnline] = useState(computer?.online || false);
     const navigate = useNavigate();
     const { socket } = useWebSocket();
+    const errorCount = computer?.error_count || 0;
 
     useEffect(() => {
         if (computer) {
             setIsOnline(computer.online || false);
-            setIsError(computer.error || false);
         }
     }, [computer]);
 
@@ -40,11 +39,8 @@ const ComputerCard = ({ computer }) => {
         };
 
         socket.addEventListener('message', handleComputerStatus);
-
-        return () => {
-            socket.removeEventListener('message', handleComputerStatus);
-        };
-    }, [socket, computer.id]);
+        return () => socket.removeEventListener('message', handleComputerStatus);
+    }, [socket, computer?.id]);
 
     const handleCardClick = () => {
         if (computer?.id) {
@@ -61,7 +57,7 @@ const ComputerCard = ({ computer }) => {
         }
     };
 
-    const { hostname, ip_address, mac_address, notes, errors } = computer || {};
+    const { hostname, ip_address, mac_address, notes } = computer || {};
 
     return (
         <div
@@ -77,21 +73,24 @@ const ComputerCard = ({ computer }) => {
                             <div className='w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center'>
                                 <FaDesktop className='text-xl text-blue-500' />
                             </div>
-                            <FaCircle
-                                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${
-                                    isOnline
-                                        ? "text-green-500"
-                                        : isError
-                                        ? "text-red-500"
-                                        : "text-gray-400"
-                                } drop-shadow-sm`}
-                            />
+                            <div className='absolute -bottom-0.5 -right-0.5'>
+                                <FaCircle
+                                    className={`w-2.5 h-2.5 ${
+                                        isOnline ? "text-green-500" : "text-gray-400"
+                                    } drop-shadow-sm`}
+                                />
+                            </div>
+                            {errorCount > 0 && (
+                                <span className='absolute -top-1 left-0 bg-red-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center'>
+                                    {errorCount}
+                                </span>
+                            )}
                         </div>
                         <div>
                             <h3 className='font-medium text-sm'>{hostname}</h3>
                             <div className='flex items-center gap-1 text-xs text-gray-500'>
                                 <FaMapMarkerAlt className='w-3 h-3' />
-                                {computer.room_name || "Unassigned Room"}
+                                {computer?.room_name || "Unassigned Room"}
                             </div>
                         </div>
                     </div>
@@ -111,12 +110,6 @@ const ComputerCard = ({ computer }) => {
                     {notes && (
                         <div className='text-gray-500 text-[11px] italic'>
                             {notes}
-                        </div>
-                    )}
-                    {errors && (
-                        <div className='flex items-center gap-1 text-red-500 text-[11px]'>
-                            <FaExclamationTriangle />
-                            <span>{errors}</span>
                         </div>
                     )}
                 </div>
@@ -163,10 +156,6 @@ const ComputerCard = ({ computer }) => {
                     </button>
                 </div>
             )}
-
-            <div className="status-indicator">
-                {isOnline ? 'Online' : 'Offline'}
-            </div>
         </div>
     );
 };

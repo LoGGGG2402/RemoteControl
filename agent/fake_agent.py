@@ -3,7 +3,7 @@ import json
 import time
 import random
 import threading
-import requests
+import requests # type: ignore
 
 
 class FakeAgent:

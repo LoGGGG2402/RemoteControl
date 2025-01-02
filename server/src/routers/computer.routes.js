@@ -50,9 +50,27 @@ router.delete(
 );
 
 router.put(
-    "/:id/notes-errors",
+    "/:id/notes",
     permissionMiddleware("manage", "computer"),
-    ComputerController.updateNotesAndErrors
+    ComputerController.updateNotes
+);
+
+router.post(
+    "/:id/errors",
+    permissionMiddleware("manage", "computer"),
+    ComputerController.addError
+);
+
+router.put(
+    "/:id/errors/:error_id/resolve",
+    permissionMiddleware("manage", "computer"),
+    ComputerController.resolveError
+);
+
+router.get(
+    "/:id/errors",
+    permissionMiddleware("view", "computer"),
+    ComputerController.getErrors
 );
 
 module.exports = router;

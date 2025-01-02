@@ -69,9 +69,9 @@ const Room = {
             db.serialize(() => {
                 db.run("BEGIN TRANSACTION");
 
-                // Delete permissions first
+                // Delete installed applications first
                 db.run(
-                    "DELETE FROM permissions WHERE room_id = ?",
+                    "DELETE FROM installed_applications WHERE computer_id IN (SELECT id FROM computers WHERE room_id = ?)",
                     [id],
                     (err) => {
                         if (err) {
@@ -79,9 +79,9 @@ const Room = {
                             return reject(err);
                         }
 
-                        // Then delete computers
+                        // Delete computer errors
                         db.run(
-                            "DELETE FROM computers WHERE room_id = ?",
+                            "DELETE FROM computer_error WHERE computer_id IN (SELECT id FROM computers WHERE room_id = ?)",
                             [id],
                             (err) => {
                                 if (err) {
@@ -89,9 +89,9 @@ const Room = {
                                     return reject(err);
                                 }
 
-                                // Finally delete the room
+                                // Then delete computers
                                 db.run(
-                                    "DELETE FROM rooms WHERE id = ?",
+                                    "DELETE FROM computers WHERE room_id = ?",
                                     [id],
                                     (err) => {
                                         if (err) {
@@ -99,8 +99,32 @@ const Room = {
                                             return reject(err);
                                         }
 
-                                        db.run("COMMIT");
-                                        resolve();
+                                        // Then delete permissions
+                                        db.run(
+                                            "DELETE FROM permissions WHERE room_id = ?",
+                                            [id],
+                                            (err) => {
+                                                if (err) {
+                                                    db.run("ROLLBACK");
+                                                    return reject(err);
+                                                }
+
+                                                // Finally delete the room
+                                                db.run(
+                                                    "DELETE FROM rooms WHERE id = ?",
+                                                    [id],
+                                                    (err) => {
+                                                        if (err) {
+                                                            db.run("ROLLBACK");
+                                                            return reject(err);
+                                                        }
+
+                                                        db.run("COMMIT");
+                                                        resolve();
+                                                    }
+                                                );
+                                            }
+                                        );
                                     }
                                 );
                             }
@@ -127,9 +151,13 @@ const Room = {
     // Computers
     getComputers: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT computers.*, (errors IS NOT NULL AND errors != '') as error
-                        FROM computers 
-                        WHERE computers.room_id = ?`;
+            const sql = `
+                SELECT computers.*, 
+                       COUNT(CASE WHEN computer_errors.resolved_at IS NULL THEN 1 END) as error_count
+                FROM computers
+                LEFT JOIN computer_errors ON computers.id = computer_errors.computer_id
+                WHERE computers.room_id = ?
+                GROUP BY computers.id`;
             db.all(sql, [id], (err, rows) => {
                 if (err) reject(err);
                 else {
@@ -167,7 +195,10 @@ const Room = {
     },
     amountErrors: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT COUNT(*) AS amount FROM computers WHERE room_id = ? AND errors IS NOT NULL AND errors != ''`;
+            const sql = `SELECT COUNT(*) AS amount
+                        FROM computer_errors
+                        WHERE computer_id IN (SELECT id FROM computers WHERE room_id = ?)
+                        AND resolved_at IS NULL`;
             db.get(sql, [id], (err, row) => {
                 if (err) reject(err);
                 else resolve(row.amount);

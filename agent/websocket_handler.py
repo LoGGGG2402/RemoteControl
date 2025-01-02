@@ -1,7 +1,10 @@
 import json
 import time
-import websocket
+import websocket  # type: ignore
 from agent_ui import show_error, show_warning
+import subprocess
+import system_info
+import choco_handle
 
 
 class WebSocketHandler:
@@ -16,45 +19,25 @@ class WebSocketHandler:
             data = json.loads(message)
             print("\n" + "=" * 30)
             print(f"[COMMAND] {data.get('type', 'unknown')}")
-
+            print(f"[PARAMS] {data.get('params')}")
             if data.get("type") == "welcome":
                 print("[STATUS] Connected to server")
                 return
 
             command_type = data.get("command_type", data.get("type"))
-            print(f"[EXECUTING] {command_type}")
+            print(f"[EXECUTING] {command_type} with params: {data.get('params')}")
 
             response = None
-            if command_type == "get_process_list":
-                processes = system_info.get_process_list()
+            response = self.handle_command(command_type, data.get("params"))
+            if response:
                 response = {
                     "type": "response",
                     "command_type": command_type,
-                    "data": processes,
+                    "success": response["success"],
+                    "message": response["message"],
+                    "data": response.get("data"),
                 }
-                print("[STATUS] Success")
-
-            elif command_type == "get_network_connections":
-                connections = system_info.get_network_connections()
-                response = {
-                    "type": "response",
-                    "command_type": command_type,
-                    "data": connections,
-                }
-                print("[STATUS] Success")
-
-            elif command_type == "install_application":
-                app_name = params.get("name")
-                success, message = choco_handle.install_package(
-                    app_name, params.get("version")
-                )
-                response = {
-                    "type": "response",
-                    "command_type": command_type,
-                    "success": success,
-                    "message": message,
-                }
-                print(f"[STATUS] {'Success' if success else 'Failed'}")
+                print(f"[STATUS] {'Success' if response['success'] else 'Failed'}")
 
             if response:
                 ws.send(json.dumps(response))
@@ -110,3 +93,59 @@ class WebSocketHandler:
             except Exception as e:
                 print("[ERROR] WebSocket connection failed:", str(e))
                 time.sleep(5)
+
+    def handle_command(self, command_type, params=None):
+        try:
+            if command_type == "get_system_info":
+                system_info_data = system_info.get_system_info()
+                return {
+                    "success": True,
+                    "message": "System info retrieved",
+                    "data": system_info_data,
+                }
+
+            elif command_type == "get_process_list":
+                processes = system_info.get_process_list()
+                return {
+                    "success": True,
+                    "message": "Process list retrieved",
+                    "data": processes,
+                }
+
+            elif command_type == "get_network_connections":
+                connections = system_info.get_network_connections()
+                return {
+                    "success": True,
+                    "message": "Network connections retrieved",
+                    "data": connections,
+                }
+
+            elif command_type == "install_application":
+                if not params or "name" not in params:
+                    return {"success": False, "message": "Application name is required"}
+
+                app_name = params["name"]
+                version = params.get("version")
+
+                result = choco_handle.install_package(app_name, version)
+                return {
+                    "success": result[0],
+                    "message": result[1],
+                }
+
+            elif command_type == "uninstall_application":
+                if not params or "name" not in params:
+                    return {"success": False, "message": "Application name is required"}
+
+                app_name = params["name"]
+                result = choco_handle.uninstall_package(app_name)
+                return {
+                    "success": result[0],
+                    "message": result[1],
+                }
+
+            else:
+                return {"success": False, "message": f"Unknown command: {command_type}"}
+
+        except Exception as e:
+            return {"success": False, "message": f"Error executing command: {str(e)}"}

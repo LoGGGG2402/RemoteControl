@@ -22,12 +22,14 @@ const ComputerCard = ({
     const navigate = useNavigate();
     const [isHovered, setIsHovered] = useState(false);
     const [isOnline, setIsOnline] = useState(false);
-    const [isError, setIsError] = useState(false);
+    const [hasError, setHasError] = useState(false);
+    const [errorCount, setErrorCount] = useState(0);
 
     useEffect(() => {
         if (computer) {
             setIsOnline(computer.online || false);
-            setIsError(computer.error || false);
+            setHasError(computer.error_count > 0);
+            setErrorCount(computer.error_count || 0);
         }
     }, [computer]);
 
@@ -121,15 +123,20 @@ const ComputerCard = ({
                     <div className='w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center'>
                         <FaDesktop className='text-xl text-blue-500' />
                     </div>
-                    <FaCircle
-                        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 ${
-                            isOnline
-                                ? "text-green-500"
-                                : isError
-                                ? "text-red-500"
-                                : "text-gray-400"
-                        } drop-shadow-sm`}
-                    />
+                    <div className='absolute -bottom-0.5 -right-0.5'>
+                        <FaCircle
+                            className={`w-2.5 h-2.5 ${
+                                isOnline
+                                    ? "text-green-500"
+                                    : "text-gray-400"
+                            } drop-shadow-sm`}
+                        />
+                    </div>
+                    {hasError && (
+                        <span className='absolute -top-1 left-0 bg-red-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center'>
+                            {errorCount}
+                        </span>
+                    )}
                 </div>
                 <div className='flex flex-col items-center text-center'>
                     <h3 className='text-xs font-medium truncate'>{hostname}</h3>

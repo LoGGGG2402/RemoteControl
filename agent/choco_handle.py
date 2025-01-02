@@ -101,24 +101,3 @@ def list_installed_packages():
         return False, f"Error listing packages: {result.stdout}"
     except subprocess.CalledProcessError as e:
         return False, f"Error: {str(e)}"
-
-
-# Test the functions
-if __name__ == "__main__":
-    success, message = install_chocolatey()
-    print(f"Success: {success}, Message: {message}")
-
-    success, packages = list_installed_packages()
-    print(f"Success: {success}, Packages: {packages}")
-
-    success, message = install_package("googlechrome")
-    print(f"Success: {success}, Message: {message}")
-
-    success, packages = list_installed_packages()
-    print(f"Success: {success}, Packages: {packages}")
-
-    success, message = uninstall_package("googlechrome")
-    print(f"Success: {success}, Message: {message}")
-
-    success, packages = list_installed_packages()
-    print(f"Success: {success}, Packages: {packages}")

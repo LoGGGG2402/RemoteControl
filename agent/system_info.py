@@ -1,6 +1,6 @@
 import socket
 import uuid
-import psutil
+import psutil # type: ignore
 
 
 def get_basic_info():
@@ -83,83 +83,11 @@ def get_network_connections():
     return connections
 
 
-def get_system_info(room_id, row_index, column_index):
+def get_system_info():
     hostname, ip_address, mac_address = get_basic_info()
 
     return {
-        "room_id": room_id,
-        "row_index": row_index,
-        "column_index": column_index,
         "ip_address": ip_address,
         "mac_address": mac_address,
         "hostname": hostname,
     }
-
-
-# Testing the functions
-from tabulate import tabulate
-from datetime import datetime
-
-def format_system_info(info):
-    return "\n".join([f"{k.upper():15} : {v}" for k, v in info.items()])
-
-
-def format_process_list(processes):
-    return tabulate(
-        [
-            (
-                p["name"],
-                p["pid"],
-                p.get(
-                    "username", "N/A"
-                ),  # Use get() with default value in case username is not available
-                p["status"],
-                f"{p['cpu_percent']:.1f}%",
-                f"{p['memory_mb']:.1f}MB",
-                datetime.fromtimestamp(p["create_time"]).strftime("%Y-%m-%d %H:%M:%S"),
-            )
-            for p in processes
-        ],
-        headers=["Process Name", "PID", "User", "Status", "CPU %", "Memory", "Created"],
-        tablefmt="grid",
-    )
-
-
-def format_network_connections(connections):
-    return tabulate(
-        [
-            (
-                c["name"],
-                c["pid"],
-                c["username"],
-                # c["local"],
-                c["remote"],
-                c.get("remote_host", "N/A"),
-                # c.get("remote_url", "N/A"),
-                c["state"],
-            )
-            for c in connections
-        ],
-        headers=[
-            "Process Name",
-            "PID",
-            "User",
-            # "Local Address",
-            "Remote Address",
-            "Remote Host",
-            # "URL",
-            "State",
-        ],
-        tablefmt="grid",
-    )
-
-
-if __name__ == "__main__":
-    print("\n=== System Information ===")
-    print(format_system_info(get_system_info(1, 1, 1)))
-
-    print("\n=== Process List ===")
-    print(format_process_list(get_process_list()))
-
-    print("\n=== Network Connections ===")
-    print(format_network_connections(get_network_connections()))

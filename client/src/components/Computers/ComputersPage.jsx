@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { computers, rooms } from "../../utils/api";
-import { FaSpinner, FaDesktop, FaSearch, FaFilter, FaServer, FaCircle, FaExclamationTriangle } from "react-icons/fa";
+import { 
+    FaSpinner, 
+    FaDesktop, 
+    FaSearch, 
+    FaServer, 
+    FaCircle, 
+    FaExclamationTriangle,
+    FaFilter 
+} from "react-icons/fa";
 import ComputerCard from "./ComputerCard";
 
 const ComputersPage = ({ user }) => {
@@ -14,7 +22,7 @@ const ComputersPage = ({ user }) => {
     });
     const [search, setSearch] = useState("");
     const [filters, setFilters] = useState({
-        status: "all", // all, online, offline, error
+        status: "all",
         roomId: "all"
     });
     const [roomsList, setRoomsList] = useState([]);
@@ -28,10 +36,10 @@ const ComputersPage = ({ user }) => {
                     rooms.all()
                 ]);
 
-                // Add room name to each computer
                 const computersWithRoomNames = computersRes.data.map(computer => ({
                     ...computer,
-                    room_name: roomsRes.data.find(room => room.id === computer.room_id)?.name || 'Unassigned Room'
+                    room_name: roomsRes.data.find(room => room.id === computer.room_id)?.name || 'Unassigned Room',
+                    error_count: computer.error_count || 0
                 }));
 
                 setComputersList(computersWithRoomNames);
@@ -54,19 +62,19 @@ const ComputersPage = ({ user }) => {
 
     const filteredComputers = computersList.filter(computer => {
         const matchesSearch = search === "" || 
-            computer.hostname.toLowerCase().includes(search.toLowerCase()) ||
-            computer.ip_address.toLowerCase().includes(search.toLowerCase()) ||
-            computer.mac_address.toLowerCase().includes(search.toLowerCase());
+            computer.hostname?.toLowerCase().includes(search.toLowerCase()) ||
+            computer.ip_address?.toLowerCase().includes(search.toLowerCase()) ||
+            computer.mac_address?.toLowerCase().includes(search.toLowerCase());
 
         const matchesStatus = 
             filters.status === "all" ||
             (filters.status === "online" && computer.online) ||
             (filters.status === "offline" && !computer.online) ||
-            (filters.status === "error" && computer.error);
+            (filters.status === "error" && computer.error_count > 0);
 
         const matchesRoom = 
             filters.roomId === "all" ||
-            computer.room_id.toString() === filters.roomId;
+            computer.room_id?.toString() === filters.roomId;
 
         return matchesSearch && matchesStatus && matchesRoom;
     });

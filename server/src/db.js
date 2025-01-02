@@ -48,32 +48,35 @@ const initDatabase = () => {
             )`
         );
 
-        // Create computers table
-        db.run(
-            `CREATE TABLE IF NOT EXISTS computers (
+        // Sửa bảng computers, bỏ cột errors
+        db.run(`
+            CREATE TABLE IF NOT EXISTS computers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 room_id INTEGER NOT NULL,
-                row_index INTEGER NOT NULL,
+                row_index INTEGER NOT NULL, 
                 column_index INTEGER NOT NULL,
                 ip_address TEXT NOT NULL,
                 mac_address TEXT NOT NULL,
                 hostname TEXT NOT NULL,
                 notes TEXT DEFAULT NULL,
-                errors TEXT DEFAULT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (room_id) REFERENCES rooms (id),
                 UNIQUE (room_id, row_index, column_index)
-            )`
-        );
+            )
+        `);
 
-        // heartbeat computers table
-        db.run(
-            `CREATE TABLE IF NOT EXISTS heartbeatd_computers (
-                computer_id INTEGER PRIMARY KEY,
-                heartbeatd_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        // Tạo bảng computer_errors
+        db.run(`
+            CREATE TABLE IF NOT EXISTS computer_errors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                computer_id INTEGER NOT NULL,
+                error_type TEXT NOT NULL CHECK(error_type IN ('hardware', 'software', 'network', 'system', 'security', 'peripheral')),
+                description TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                resolved_at TIMESTAMP DEFAULT NULL,
                 FOREIGN KEY (computer_id) REFERENCES computers(id)
-            )`
-        );
+            )
+        `);
 
         // Create available applications table
         db.run(

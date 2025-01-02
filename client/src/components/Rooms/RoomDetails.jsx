@@ -64,7 +64,7 @@ const RoomDetails = ({ user }) => {
                 setAmount({
                     computers: response.data.computers.length,
                     errors: response.data.computers.filter(
-                        (c) => c.error || false
+                        (c) => c.error_count > 0
                     ).length,
                     online: response.data.computers.filter(
                         (c) => c.online === 1

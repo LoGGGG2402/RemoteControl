@@ -185,8 +185,20 @@ export const computers = {
             data: { application_id: applicationId },
         }),
 
-    updateNotesAndErrors: (id, data) => 
-        api.put(`/computer/${id}/notes-errors`, data),
+    updateNotes: (id, data) => 
+        api.put(`/computer/${id}/notes`, data),
+
+    getErrors: (id) => {
+        return api.get(`/computer/${id}/errors`);
+    },
+
+    addError: (id, data) => {
+        return api.post(`/computer/${id}/errors`, data);
+    },
+    
+    resolveError: (computerId, errorId) => {
+        return api.put(`/computer/${computerId}/errors/${errorId}/resolve`);
+    },
 };
 
 export const applications = {

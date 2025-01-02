@@ -61,7 +61,10 @@ const Computer = {
     },
     findById: (id) => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT * FROM computers WHERE id = ?`;
+            const sql = `SELECT computers.*, computer_errors.id as error_id, computer_errors.error_type, computer_errors.description, computer_errors.created_at, computer_errors.resolved_at
+                        FROM computers
+                        LEFT JOIN computer_errors ON computers.id = computer_errors.computer_id
+                        WHERE computers.id = ?`;
             db.get(sql, [id], (err, row) => {
                 if (err) reject(err);
                 else if (row) {
@@ -83,8 +86,12 @@ const Computer = {
     },
     all: () => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT *, (errors IS NOT NULL AND errors != '') as error
-                        FROM computers`;
+            const sql = `
+                SELECT computers.*, 
+                       COUNT(CASE WHEN computer_errors.resolved_at IS NULL THEN 1 END) as error_count
+                FROM computers
+                LEFT JOIN computer_errors ON computers.id = computer_errors.computer_id
+                GROUP BY computers.id`;
             db.all(sql, (err, rows) => {
                 if (err) reject(err);
                 else {
@@ -108,10 +115,13 @@ const Computer = {
     },
     amountErrors: () => {
         return new Promise((resolve, reject) => {
-            const sql = `SELECT COUNT(*) AS amount FROM computers WHERE errors IS NOT NULL AND errors != ''`;
+            const sql = `SELECT COUNT(DISTINCT computers.id) AS amount 
+                        FROM computers 
+                        JOIN computer_errors ON computers.id = computer_errors.computer_id
+                        WHERE computer_errors.resolved_at IS NULL`;
             db.get(sql, (err, row) => {
                 if (err) reject(err);
-                else resolve(row.amount);
+                else resolve(row.amount); 
             });
         });
     },
@@ -149,49 +159,6 @@ const Computer = {
                 (err) => {
                     if (err) reject(err);
                     else resolve(computer.id);
-                }
-            );
-        });
-    },
-    delete: (id) => {
-        return new Promise((resolve, reject) => {
-            // delete computer by id and all its installed applications
-            db.run("BEGIN TRANSACTION");
-            db.run(
-                "DELETE FROM installed_applications WHERE computer_id = ?",
-                [id],
-                (err) => {
-                    if (err) {
-                        db.run("ROLLBACK");
-                        return reject(err);
-                    }
-
-                    db.run(
-                        "DELETE FROM heartbeatd_computers WHERE computer_id = ?",
-                        [id],
-                        (err) => {
-                            if (err) {
-                                db.run("ROLLBACK");
-                                return reject(err);
-                            }
-
-                            db.run(
-                                "DELETE FROM computers WHERE id = ?",
-                                [id],
-                                (err) => {
-                                    if (err) {
-                                        db.run("ROLLBACK");
-                                        return reject(err);
-                                    }
-
-                                    db.run("COMMIT", (err) => {
-                                        if (err) reject(err);
-                                        else resolve();
-                                    });
-                                }
-                            );
-                        }
-                    );
                 }
             );
         });
@@ -263,15 +230,61 @@ const Computer = {
         });
     },
 
-    updateNotesAndErrors: (id, notes, errors) => {
+    updateNotes: (id, notes) => {
         return new Promise((resolve, reject) => {
-            const sql = `UPDATE computers SET notes = ?, errors = ?, updated_at = datetime('now') WHERE id = ?`;
-            db.run(sql, [notes, errors, id], (err) => {
+            const sql = `UPDATE computers SET notes = ?, updated_at = datetime('now') WHERE id = ?`;
+            db.run(sql, [notes, id], (err) => {
                 if (err) reject(err);
                 else resolve();
             });
         });
     },
+
+    addError: (computer_id, error_type, description) => {
+        return new Promise((resolve, reject) => {
+            const sql = `INSERT INTO computer_errors (computer_id, error_type, description) 
+                        VALUES (?, ?, ?)`;
+            db.run(sql, [computer_id, error_type, description], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+    },
+
+    resolveError: (error_id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `UPDATE computer_errors 
+                        SET resolved_at = datetime('now')
+                        WHERE id = ?`;
+            db.run(sql, [error_id], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+    },
+
+    getErrors: (computer_id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT * FROM computer_errors 
+                        WHERE computer_id = ? AND resolved_at IS NULL
+                        ORDER BY created_at DESC`;
+            db.all(sql, [computer_id], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    },
+
+    hasErrors: (computer_id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT COUNT(*) as count FROM computer_errors
+                        WHERE computer_id = ? AND resolved_at IS NULL`;
+            db.get(sql, [computer_id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row.count > 0);
+            });
+        });
+    }
 };
 
 module.exports = Computer;
