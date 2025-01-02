@@ -6,5 +6,8 @@
     "client": "cd client && npm run dev",
     "server": "cd server && npm run dev",
     "dev": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "dependencies": {
+    "uuid": "^11.0.3"
   }
 }

@@ -4,18 +4,34 @@ import time
 import threading
 import platform
 import choco_handle
-import requests # type: ignore
+import requests  # type: ignore
 import system_info
 import sys
 import subprocess
 from agent_ui import SetupDialog, show_error, show_info
-from websocket_handler import WebSocketHandler
+from command_handler import CommandHandler
+import win32event  # type: ignore
+import win32api  # type: ignore
+import winerror  # type: ignore
 
 
 class Agent:
     def __init__(self):
         if platform.system() != "Windows":
             show_error("System Error", "This agent only runs on Windows systems.")
+            sys.exit(1)
+
+        # Tạo Windows Named Mutex để chống chạy nhiều instance
+        mutex_name = "Global\\RemoteControlAgent"
+        try:
+            self.mutex = win32event.CreateMutex(None, 1, mutex_name)
+            if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
+                show_error(
+                    "Agent Error", "Another instance of the agent is already running."
+                )
+                sys.exit(1)
+        except Exception as e:
+            show_error("Mutex Error", f"Failed to create mutex: {str(e)}")
             sys.exit(1)
 
         self.server_host = "localhost"
@@ -143,15 +159,16 @@ class Agent:
 
     def run(self):
         if self.connect_to_server():
-            self.ws_handler = WebSocketHandler(self.computer_id, self.config)
-            ws_thread = threading.Thread(target=self.ws_handler.start_websocket)
-            ws_thread.daemon = True
-            ws_thread.start()
+            self.command_handler = CommandHandler(self.computer_id, self.config)
+            command_thread = threading.Thread(
+                target=self.command_handler.start_websocket
+            )
+            command_thread.daemon = True
+            command_thread.start()
 
             while True:
                 time.sleep(1)
 
-    
 
 if __name__ == "__main__":
     agent = Agent()

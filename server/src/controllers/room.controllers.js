@@ -201,6 +201,12 @@ const RoomController = {
             res.json(results);
         } catch (err) {
             console.error(err);
+            if (err.code === "SQLITE_CONSTRAINT") {
+                res.status(400).send("Room or application not found");
+            }
+            if (err.message.includes("Command timeout")) {
+                res.status(400).send("Command timeout");
+            }
             res.status(500).send("Internal Server Error");
         }
     },

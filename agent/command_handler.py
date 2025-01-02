@@ -2,17 +2,62 @@ import json
 import time
 import websocket  # type: ignore
 from agent_ui import show_error, show_warning
-import subprocess
 import system_info
 import choco_handle
+import threading
+import queue
 
 
-class WebSocketHandler:
+class CommandHandler:
     def __init__(self, computer_id, config):
         self.computer_id = computer_id
         self.config = config
         self.ws = None
         self.ws_url = f"ws://{self.config['server_ip']}:3000/ws"
+        self.task_queue = queue.Queue()
+        self.worker_thread = threading.Thread(target=self._process_tasks, daemon=True)
+        self.worker_thread.start()
+
+    def _process_tasks(self):
+        while True:
+            try:
+                task = self.task_queue.get()
+                if task is None:
+                    break
+                func, args, callback = task
+                try:
+                    result = func(*args)
+                    if callback:
+                        callback(True, result)
+                except Exception as e:
+                    if callback:
+                        callback(False, str(e))
+            except Exception:
+                continue
+
+    def _execute_heavy_task(self, func, *args, command_type=None, task_id=None):
+        def callback(success, result):
+            if self.ws:
+                response = {
+                    "type": "task_completed",
+                    "command_type": command_type,
+                    "task_id": task_id,
+                    "success": success,
+                    "message": (
+                        result if not success else f"Task completed successfully"
+                    ),
+                    "data": result if success else None,
+                }
+                print("\n" + "=" * 30)
+                print(f"[TASK COMPLETED] {command_type}")
+                print(f"[SUCCESS] {success}")
+                print(f"[MESSAGE] {response['message']}")
+                if success:
+                    print(f"[DATA] {response['data']}")
+                print("=" * 30 + "\n")
+                self.ws.send(json.dumps(response))
+
+        self.task_queue.put((func, args, callback))
 
     def handle_message(self, ws, message):
         try:
@@ -124,24 +169,42 @@ class WebSocketHandler:
                 if not params or "name" not in params:
                     return {"success": False, "message": "Application name is required"}
 
-                app_name = params["name"]
+                app_name = params.get("name")
                 version = params.get("version")
+                task_id = params.get("task_id")
 
-                result = choco_handle.install_package(app_name, version)
+                print(f"Installing {app_name} with version {version}")
+
+                self._execute_heavy_task(
+                    choco_handle.install_package,
+                    app_name,
+                    version,
+                    command_type=command_type,
+                    task_id=task_id,
+                )
                 return {
-                    "success": result[0],
-                    "message": result[1],
+                    "success": True,
+                    "message": f"Installation of {app_name} started",
+                    "data": {"status": "wait", "task_id": task_id},
                 }
 
             elif command_type == "uninstall_application":
                 if not params or "name" not in params:
                     return {"success": False, "message": "Application name is required"}
 
-                app_name = params["name"]
-                result = choco_handle.uninstall_package(app_name)
+                app_name = params.get("name")
+                task_id = params.get("task_id")
+
+                self._execute_heavy_task(
+                    choco_handle.uninstall_package,
+                    app_name,
+                    command_type=command_type,
+                    task_id=task_id,
+                )
                 return {
-                    "success": result[0],
-                    "message": result[1],
+                    "success": True,
+                    "message": f"Uninstallation of {app_name} started",
+                    "data": {"status": "wait", "task_id": task_id},
                 }
 
             else:

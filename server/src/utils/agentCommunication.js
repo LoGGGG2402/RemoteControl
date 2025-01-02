@@ -1,7 +1,9 @@
 const WebSocket = require('ws');
+const { v4: uuidv4 } = require('uuid');
 
 let wss = null;
 const computerClients = new Map();
+const pendingTasks = new Map();
 
 const initializeWebSocket = (server) => {
     if (wss) return;
@@ -47,6 +49,14 @@ const initializeWebSocket = (server) => {
                     computerClients.set(computerId, ws);
                     console.log('Current connected computers:', Array.from(computerClients.keys()));
                 }
+                else if (data.type === 'task_completed' && data.task_id) {
+                    const taskId = data.task_id;
+                    const pendingTask = pendingTasks.get(taskId);
+                    if (pendingTask) {
+                        pendingTask.resolve(data);
+                        pendingTasks.delete(taskId);
+                    }
+                }
             } catch (e) {
                 console.error('Error processing message:', e);
             }
@@ -77,9 +87,13 @@ const sendCommandToComputer = (computerId, commandType, params = {}) => {
             return;
         }
 
+        const taskId = uuidv4();
         const command = JSON.stringify({
             type: commandType,
-            params: params,
+            params: {
+                ...params,
+                task_id: taskId
+            },
         });
 
         ws.send(command);
@@ -87,8 +101,15 @@ const sendCommandToComputer = (computerId, commandType, params = {}) => {
         const handleMessage = (message) => {
             try {
                 const response = JSON.parse(message.toString());
-                ws.removeListener('message', handleMessage);
-                resolve(response);
+                if (response.data && response.data.status === 'wait') {
+                    // Nếu nhận được trạng thái wait, lưu promise để resolve sau
+                    pendingTasks.set(taskId, { resolve, reject });
+                    ws.removeListener('message', handleMessage);
+                } else {
+                    // Nếu là response thông thường, resolve ngay
+                    ws.removeListener('message', handleMessage);
+                    resolve(response);
+                }
             } catch (e) {
                 console.error('Error parsing response:', e);
                 reject(e);
@@ -99,8 +120,9 @@ const sendCommandToComputer = (computerId, commandType, params = {}) => {
 
         setTimeout(() => {
             ws.removeListener('message', handleMessage);
+            pendingTasks.delete(taskId);
             reject(new Error('Command timeout'));
-        }, 120000);
+        }, 60 * 60 * 1000); // 1 hour
     });
 };
 
