@@ -88,10 +88,11 @@ const Computer = {
         return new Promise((resolve, reject) => {
             const sql = `
                 SELECT computers.*, 
-                       COUNT(CASE WHEN computer_errors.resolved_at IS NULL THEN 1 END) as error_count
-                FROM computers
-                LEFT JOIN computer_errors ON computers.id = computer_errors.computer_id
-                GROUP BY computers.id`;
+                       (SELECT COUNT(*) 
+                        FROM computer_errors 
+                        WHERE computer_errors.computer_id = computers.id 
+                        AND computer_errors.resolved_at IS NULL) as error_count
+                FROM computers`;
             db.all(sql, (err, rows) => {
                 if (err) reject(err);
                 else {

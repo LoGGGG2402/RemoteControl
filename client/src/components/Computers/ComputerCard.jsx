@@ -21,6 +21,7 @@ const ComputerCard = ({ computer }) => {
     useEffect(() => {
         if (computer) {
             setIsOnline(computer.online || false);
+            console.log(computer);
         }
     }, [computer]);
 

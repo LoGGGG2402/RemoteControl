@@ -277,18 +277,18 @@ const RoomDetails = ({ user }) => {
                 <div className='flex items-center gap-4 mb-4'>
                     <select
                         className='border rounded p-2 flex-grow'
-                        value={selectedApp || selectedFile || ""}
+                        value={selectedApp ? `app_${selectedApp}` : selectedFile ? `file_${selectedFile}` : ""}
                         onChange={(e) => {
                             const value = e.target.value;
-                            if (value.startsWith('app_')) {
+                            if (value === "") {
+                                setSelectedApp(null);
+                                setSelectedFile(null);
+                            } else if (value.startsWith('app_')) {
                                 setSelectedApp(value.replace('app_', ''));
                                 setSelectedFile(null);
                             } else if (value.startsWith('file_')) {
                                 setSelectedFile(value.replace('file_', ''));
                                 setSelectedApp(null);
-                            } else {
-                                setSelectedApp(null);
-                                setSelectedFile(null);
                             }
                         }}
                     >
