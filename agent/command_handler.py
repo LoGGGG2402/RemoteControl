@@ -1,14 +1,12 @@
 import json
 import time
 import websocket  # type: ignore
-from agent_ui import show_error, show_warning
 import system_info
 import choco_handle
 import file_handle
 import threading
 import queue
-import os
-import shutil
+import logger
 
 
 class CommandHandler:
@@ -51,13 +49,13 @@ class CommandHandler:
                     ),
                     "data": result if success else None,
                 }
-                print("\n" + "=" * 30)
-                print(f"[TASK COMPLETED] {command_type}")
-                print(f"[SUCCESS] {success and result[0]}")
-                print(f"[MESSAGE] {response['message']}")
+                logger.info("\n" + "=" * 30)
+                logger.info(f"[TASK COMPLETED] {command_type}")
+                logger.info(f"[SUCCESS] {success and result[0]}")
+                logger.info(f"[MESSAGE] {response['message']}")
                 if success:
-                    print(f"[DATA] {response['data']}")
-                print("=" * 30 + "\n")
+                    logger.info(f"[DATA] {response['data']}")
+                logger.info("=" * 30 + "\n")
                 self.ws.send(json.dumps(response))
 
         self.task_queue.put((func, args, callback))
@@ -65,15 +63,15 @@ class CommandHandler:
     def handle_message(self, ws, message):
         try:
             data = json.loads(message)
-            print("\n" + "=" * 30)
-            print(f"[COMMAND] {data.get('type', 'unknown')}")
-            print(f"[PARAMS] {data.get('params')}")
+            logger.info("\n" + "=" * 30)
+            logger.info(f"[COMMAND] {data.get('type', 'unknown')}")
+            logger.info(f"[PARAMS] {data.get('params')}")
             if data.get("type") == "welcome":
-                print("[STATUS] Connected to server")
+                logger.info("[STATUS] Connected to server")
                 return
 
             command_type = data.get("command_type", data.get("type"))
-            print(f"[EXECUTING] {command_type} with params: {data.get('params')}")
+            logger.info(f"[EXECUTING] {command_type} with params: {data.get('params')}")
 
             response = None
             response = self.handle_command(command_type, data.get("params"))
@@ -85,33 +83,35 @@ class CommandHandler:
                     "message": response["message"],
                     "data": response.get("data"),
                 }
-                print(f"[STATUS] {'Success' if response['success'] else 'Failed'}")
+                logger.info(
+                    f"[STATUS] {'Success' if response['success'] else 'Failed'}"
+                )
 
             if response:
                 ws.send(json.dumps(response))
-            print("=" * 30 + "\n")
+            logger.info("=" * 30 + "\n")
 
         except json.JSONDecodeError:
-            print("\n[ERROR] Invalid JSON message")
+            logger.error("\n[ERROR] Invalid JSON message")
         except Exception as e:
-            print("\n[ERROR]", str(e))
+            logger.error("\n[ERROR] " + str(e))
             ws.send(json.dumps({"type": "error", "message": str(e)}))
 
     def on_error(self, ws, error):
-        show_warning("WebSocket Error", str(error))
+        logger.warning(f"WebSocket Error: {str(error)}")
 
     def on_close(self, ws, close_status_code, close_msg):
-        show_warning("Connection Closed", "WebSocket connection closed")
-        time.sleep(5)  # Đợi 5 giây trước khi thử kết nối lại
+        logger.warning("WebSocket connection closed")
+        time.sleep(5)
         self.start_websocket()
 
     def on_open(self, ws):
-        print("WebSocket connection established")
+        logger.info("WebSocket connection established")
         try:
             auth_message = {"type": "auth", "computer_id": self.computer_id}
             ws.send(json.dumps(auth_message))
         except Exception as e:
-            show_error("WebSocket Error", f"Failed to send auth message: {str(e)}")
+            logger.error(f"Failed to send auth message: {str(e)}")
 
     def start_websocket(self):
         websocket.enableTrace(False)
@@ -130,7 +130,7 @@ class CommandHandler:
                     subprotocols=["agent-protocol"],
                 )
 
-                print(f"[AGENT] Connecting to {self.ws_url}...")
+                logger.info(f"[AGENT] Connecting to {self.ws_url}...")
                 self.ws.run_forever(
                     skip_utf8_validation=True,
                     ping_interval=30,
@@ -139,7 +139,7 @@ class CommandHandler:
                 )
 
             except Exception as e:
-                print("[ERROR] WebSocket connection failed:", str(e))
+                logger.error("[ERROR] WebSocket connection failed: " + str(e))
                 time.sleep(5)
 
     def handle_command(self, command_type, params=None):
@@ -176,7 +176,7 @@ class CommandHandler:
                 version = params.get("version")
                 task_id = params.get("task_id")
 
-                print(f"Installing {app_name} with version {version}")
+                logger.info(f"Installing {app_name} with version {version}")
 
                 self._execute_heavy_task(
                     choco_handle.install_package,

@@ -8,18 +8,17 @@ import file_handle
 import requests  # type: ignore
 import system_info
 import sys
-import subprocess
-from agent_ui import SetupDialog, show_error, show_info
 from command_handler import CommandHandler
 import win32event  # type: ignore
 import win32api  # type: ignore
 import winerror  # type: ignore
+from logger import logger
 
 
 class Agent:
     def __init__(self):
         if platform.system() != "Windows":
-            show_error("System Error", "This agent only runs on Windows systems.")
+            logger.error("This agent only runs on Windows systems")
             sys.exit(1)
 
         # Tạo Windows Named Mutex để chống chạy nhiều instance
@@ -27,18 +26,18 @@ class Agent:
         try:
             self.mutex = win32event.CreateMutex(None, 1, mutex_name)
             if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
-                show_error(
-                    "Agent Error", "Another instance of the agent is already running."
-                )
+                logger.error("Another instance of the agent is already running")
                 sys.exit(1)
         except Exception as e:
-            show_error("Mutex Error", f"Failed to create mutex: {str(e)}")
+            logger.error(f"Failed to create mutex: {str(e)}")
             sys.exit(1)
 
         self.server_host = "localhost"
         self.server_port = 3000
         self.computer_id = None
         self.config = self.load_or_create_config()
+        if not self.config:
+            sys.exit(1)
         self.api_url = f"http://{self.config['server_ip']}:3000/api/agent"
         self.room_name = self.config["room_name"]
         self.row_index = self.config["row_index"]
@@ -47,33 +46,18 @@ class Agent:
 
     def load_or_create_config(self):
         config_dir = os.path.join(os.getenv("APPDATA"), "RemoteControl")
-        if not os.path.exists(config_dir):
-
-            # Install Chocolatey for first time setup
-            success, message = choco_handle.install_chocolatey()
-            if not success:
-                show_error(
-                    "Installation Error", f"Failed to install Chocolatey: {message}"
-                )
-                sys.exit(1)
-            show_info("Installation Status", message)
-            os.makedirs(config_dir)
         config_path = os.path.join(config_dir, "agent_config.json")
 
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                return json.load(f)
-
-        print("First time setup required...")
-        dialog = SetupDialog()
-        config = dialog.get_result()
-        if not config:
+        if not os.path.exists(config_path):
+            logger.error("Agent configuration not found. Please run installer first.")
             sys.exit(1)
 
-        with open(config_path, "w") as f:
-            json.dump(config, f)
-
-        return config
+        try:
+            with open(config_path, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load configuration: {str(e)}")
+            sys.exit(1)
 
     def connect_to_server(self):
         while True:
@@ -95,49 +79,13 @@ class Agent:
                 )
                 data = response.json()
 
-                if "error" in data:
-                    error_message = data["error"]
-                    error_code = data.get("code", "UNKNOWN_ERROR")
-
-                    if error_code in [
-                        "ROOM_NOT_FOUND",
-                        "INVALID_ROW_INDEX",
-                        "INVALID_COLUMN_INDEX",
-                        "POSITION_OCCUPIED",
-                    ]:
-                        show_error("Configuration Error", error_message)
-
-                        # Hiển thị dialog cấu hình lại
-                        dialog = SetupDialog()
-                        new_config = dialog.get_result()
-                        if not new_config:
-                            continue
-
-                        # Cập nhật config mới
-                        self.config.update(new_config)
-                        config_path = os.path.join(
-                            os.getenv("APPDATA"), "RemoteControl", "agent_config.json"
-                        )
-                        with open(config_path, "w") as f:
-                            json.dump(self.config, f)
-
-                        # Cập nhật các thuộc tính
-                        self.room_name = self.config["room_name"]
-                        self.row_index = self.config["row_index"]
-                        self.column_index = self.config["column_index"]
-                        continue
-                    else:
-                        show_error("Unknown Error", error_message)
-                        return False
-
                 self.computer_id = data["id"]
-                print(f"Connected successfully. Computer ID: {self.computer_id}")
+                logger.info(f"Connected successfully. Computer ID: {self.computer_id}")
                 return True
 
             except requests.exceptions.ConnectionError:
-                show_error(
-                    "Connection Error",
-                    f"Could not connect to server at {self.api_url}. Please check if server is running and IP is correct.",
+                logger.error(
+                    f"Could not connect to server at {self.api_url}. Please check if server is running and IP is correct."
                 )
 
                 # Cho phép người dùng nhập lại IP server
@@ -155,9 +103,8 @@ class Agent:
                 continue
 
             except Exception as e:
-                show_error("Connection Error", str(e))
+                logger.error(f"Connection Error: {str(e)}")
                 return False
-
 
     def update_list_file_and_application(self):
         try:
@@ -169,13 +116,13 @@ class Agent:
             response = requests.post(
                 f"{self.api_url}/update-list-file-and-application/{self.computer_id}",
                 json={"listFile": list_file, "listApplication": list_application},
-                timeout=5
+                timeout=5,
             )
             return response.text
         except requests.exceptions.Timeout:
             return "Request timed out while updating lists"
         except requests.exceptions.ConnectionError:
-            return "Connection error while updating lists" 
+            return "Connection error while updating lists"
         except Exception as e:
             return f"Error updating lists: {str(e)}"
 

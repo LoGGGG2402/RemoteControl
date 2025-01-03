@@ -1,6 +1,9 @@
 import socket
 import uuid
-import psutil # type: ignore
+import psutil  # type: ignore
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_basic_info():
@@ -31,13 +34,12 @@ def get_process_list():
             )
             pinfo["cpu_percent"] = proc.cpu_percent(interval=0.01)
             pinfo["memory_mb"] = proc.memory_info().rss / (1024 * 1024)  # Convert to MB
-            # pinfo['create_time'] = datetime.fromtimestamp(pinfo['create_time']).strftime('%Y-%m-%d %H:%M:%S')
             process_list.append(pinfo)
         except Exception as e:
-            print(f"Error getting process info: {e}")
+            logger.error(f"Error getting process info: {e}")
             continue
 
-    print("success")
+    logger.info("Successfully retrieved process list")
     return process_list
 
 

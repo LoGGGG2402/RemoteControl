@@ -30,16 +30,16 @@ const AgentController = {
                 });
             }
 
-            if (row_index < 1 || row_index > room.row_count) {
+            if (row_index < 0 || row_index > room.row_count) {
                 return res.status(400).json({
-                    error: `Row index must be between 1 and ${room.row_count}`,
+                    error: `Row index must be between 0 and ${room.row_count}`,
                     code: "INVALID_ROW_INDEX"
                 });
             }
 
-            if (column_index < 1 || column_index > room.column_count) {
+            if (column_index < 0 || column_index > room.column_count) {
                 return res.status(400).json({
-                    error: `Column index must be between 1 and ${room.column_count}`,
+                    error: `Column index must be between 0 and ${room.column_count}`,
                     code: "INVALID_COLUMN_INDEX"
                 });
             }
