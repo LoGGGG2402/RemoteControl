@@ -1,6 +1,7 @@
 const Computer = require("../models/computer.model");
 const Room = require("../models/room.model");
 const Application = require("../models/application.model");
+const File = require("../models/file.model");
 
 const AgentController = {
     connect: async (req, res) => {
@@ -87,35 +88,7 @@ const AgentController = {
 
             // Update applications list
             if (req.body.applications) {
-                availableApplications = await Application.all();
-                installedApplications = await Computer.getApplications(computerId);
-
-                for (const application of req.body.applications) {
-                    const availableApplication = availableApplications.find(
-                        (a) => a.name === application
-                    );
-                    if (availableApplication) {
-                        const installedApplication = installedApplications.find(
-                            (a) => a.name === application
-                        );
-                        if (!installedApplication) {
-                            await Computer.installApplication(
-                                computerId,
-                                availableApplication.id,
-                                1
-                            );
-                        }
-                    }
-                }
-
-                for (const application of installedApplications) {
-                    if (!req.body.applications.includes(application.name)) {
-                        await Computer.removeApplication(
-                            computerId,
-                            application.id
-                        );
-                    }
-                }
+                
             }
 
             res.send({ message: "Connected successfully", id: computerId });
@@ -127,6 +100,69 @@ const AgentController = {
             res.status(500).send("Internal Server Error");
         }
     },
+
+    updateListFileAndApplication: async (req, res) => {
+        const { id } = req.params;
+        const { listFile, listApplication } = req.body;
+
+        const computer = await Computer.findById(id);
+        if (!computer) {
+            res.status(404).send("Computer not found");
+            return;
+        }
+
+        const availableApplications = await Application.all();
+        const installedApplications = await Computer.getApplications(computer.id);
+
+        for (const application of listApplication) {
+            const availableApplication = availableApplications.find(
+                (a) => a.name === application
+            );
+                    if (availableApplication) {
+                        const installedApplication = installedApplications.find(
+                            (a) => a.name === application
+                        );
+                        if (!installedApplication) {
+                            await Computer.installApplication(
+                                computer.id,
+                                availableApplication.id,
+                                1
+                            );
+                }
+            }
+        }
+
+        for (const application of installedApplications) {
+            if (!listApplication.includes(application.name)) {
+                await Computer.removeApplication(
+                    computer.id,
+                    application.id
+                );
+            }
+        }
+
+        const availableFiles = await File.all();
+        const installedFiles = await Computer.getFiles(computer.id);
+
+        for (const file of listFile) {
+            const availableFile = availableFiles.find((f) => f.name === file);
+            if (availableFile) {
+                const installedFile = installedFiles.find((f) => f.name === file);
+                if (!installedFile) {
+                    await Computer.installFile(computer.id, availableFile.id, 1);
+                }
+            }
+        }
+
+        for (const file of installedFiles) {
+            if (!listFile.includes(file.name)) {
+                await Computer.removeFile(computer.id, file.id);
+            }
+        }
+
+        res.send("Updated successfully");
+    },
 };
 
 module.exports = AgentController;
+

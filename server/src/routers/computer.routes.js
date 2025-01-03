@@ -36,6 +36,25 @@ router.get(
     ComputerController.viewApplications
 );
 
+// File Routes
+router.get(
+    "/:id/files",
+    permissionMiddleware("view", "computer"),
+    ComputerController.viewFiles
+);
+
+router.post(
+    "/:id/files",
+    permissionMiddleware("manage", "computer"),
+    ComputerController.installFile
+);
+
+router.delete(
+    "/:id/files",
+    permissionMiddleware("manage", "computer"),
+    ComputerController.deleteFile
+);
+
 // Management Routes
 router.post(
     "/:id/applications",

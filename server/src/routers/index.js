@@ -4,7 +4,7 @@ const ComputerRoutes = require("./computer.routes");
 const RoomRoutes = require("./room.routes");
 const authRoutes = require("./auth.routes");
 const ApplicationRoutes = require("./application.routes");
-
+const FileRoutes = require("./file.routes");
 const authMiddleware = require("../middlewares/auth.middleware");
 
 const { Router } = require("express");
@@ -18,5 +18,5 @@ router.use("/application", authMiddleware, ApplicationRoutes);
 
 router.use("/agent", AgentRoutes);
 router.use("/auth", authRoutes);
-
+router.use("/file", authMiddleware, FileRoutes);
 module.exports = router;

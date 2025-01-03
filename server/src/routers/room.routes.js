@@ -38,6 +38,7 @@ router.get(
     RoomController.amountComputers
 );
 
+// 
 router.get(
     "/:id/applications/:application_id",
     permissionMiddleware("view", "room"),
@@ -48,6 +49,19 @@ router.post(
     "/:id/applications/:application_id",
     permissionMiddleware("manage", "room"),
     RoomController.installApplication
+);
+
+// File Routes
+router.get(
+    "/:id/files/:file_id",
+    permissionMiddleware("view", "room"),
+    RoomController.getComputersInstalledFile
+);
+
+router.post(
+    "/:id/files/:file_id",
+    permissionMiddleware("manage", "room"),
+    RoomController.installFile
 );
 
 // User Routes

@@ -1,6 +1,7 @@
 const Computer = require("../models/computer.model");
 const Application = require("../models/application.model");
-const { db } = require("../db");
+const File = require("../models/file.model");
+const { db } = require("../configs/db");
 
 const { sendCommandToComputer } = require("../utils/agentCommunication");
 
@@ -117,17 +118,21 @@ const ComputerController = {
     viewApplications: async (req, res) => {
         try {
             const { id } = req.params;
-            const computer = await Computer.findById(id);
-
-            if (!computer) {
-                res.status(404).send("Computer not found");
-                return;
-            }
-
             const applications = await Computer.getApplications(id);
             res.json(applications);
         } catch (error) {
             console.error("Error viewing computer applications:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    },
+
+    viewFiles: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const files = await Computer.getFiles(id);
+            res.json(files);
+        } catch (error) {
+            console.error("Error viewing computer files:", error);
             res.status(500).json({ error: "Internal server error" });
         }
     },
@@ -250,6 +255,88 @@ const ComputerController = {
         }
     },
 
+    // File management
+
+    installFile: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { file_id } = req.body;
+            
+            const file = await File.findById(file_id);
+            if (!file) {
+                return res.status(404).send("File not found");
+            }
+
+            // get last path of file
+            const lastPath = file.file_path.split("/").pop();
+            const response = await sendCommandToComputer(
+                id,
+                "install_file",
+                {
+                    name: file.name,
+                    link: `/uploads/${lastPath}`,
+                }
+            );
+
+            if (!response) {
+                return res.status(503).json({
+                    error: "Unable to install file on the computer",
+                });
+            }
+
+            const { success, message } = response;
+
+            if (!success) {
+                return res.status(400).json({ error: message });
+            }
+
+            await Computer.installFile(id, file_id, req.user.id);
+
+            res.status(200).send("File installed successfully");
+        } catch (error) {
+            console.error("Error installing file:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    },
+
+    deleteFile: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { file_id } = req.body;
+            
+            const file = await File.findById(file_id);
+            if (!file) {
+                return res.status(404).send("File not found");
+            }
+
+            const response = await sendCommandToComputer(
+                id,
+                "remove_file",
+                {
+                    name: file.name
+                }
+            );
+
+            if (!response) {
+                return res.status(503).json({
+                    error: "Unable to delete file from the computer",
+                });
+            }
+
+            const { success, message } = response;
+
+            if (!success) {
+                return res.status(400).json({ error: message });
+            }
+
+            await Computer.removeFile(id, file_id);
+            res.status(200).send("File deleted successfully");
+        } catch (error) {
+            console.error("Error deleting file:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    },
+
     // agent communication
     update: async (req, res) => {
         try {
@@ -274,6 +361,7 @@ const ComputerController = {
         }
     },
 
+    // Notes
     updateNotes: async (req, res) => {
         try {
             const { id } = req.params;
@@ -287,6 +375,7 @@ const ComputerController = {
         }
     },
 
+    // Errors
     addError: async (req, res) => {
         try {
             const { id } = req.params;

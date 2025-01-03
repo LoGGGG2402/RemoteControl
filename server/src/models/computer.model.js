@@ -1,4 +1,4 @@
-const { db } = require("../db");
+const { db } = require("../configs/db");
 const { computerClients } = require('../utils/agentCommunication');
 
 const Computer = {
@@ -282,6 +282,55 @@ const Computer = {
             db.get(sql, [computer_id], (err, row) => {
                 if (err) reject(err);
                 else resolve(row.count > 0);
+            });
+        });
+    },
+
+    // File management
+    installFile: (computer_id, file_id, installed_by) => {
+        return new Promise((resolve, reject) => {
+            const sql = `INSERT INTO installed_files (computer_id, file_id, installed_by) VALUES (?, ?, ?)`;
+            db.run(sql, [computer_id, file_id, installed_by], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+    },
+
+    removeFile: (computer_id, file_id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `DELETE FROM installed_files WHERE computer_id = ? AND file_id = ?`;
+            db.run(sql, [computer_id, file_id], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+    },
+
+    getFiles: (computer_id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT f.*, if.installed_at, u.full_name, u.email
+                        FROM files f
+                        JOIN installed_files if ON f.id = if.file_id
+                        JOIN users u ON if.installed_by = u.id
+                        WHERE if.computer_id = ?`;
+            db.all(sql, [computer_id], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+    },
+
+    isInstalledFile: (computer_id, file_id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT COUNT(*) AS amount
+                        FROM installed_files
+                        WHERE computer_id = ? AND file_id = ?`;
+            db.get(sql, [computer_id, file_id], (err, row) => {
+                if (err) reject(err);
+                else {
+                    resolve(row.amount > 0);
+                }
             });
         });
     }

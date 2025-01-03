@@ -1,4 +1,4 @@
-const { db } = require("../db");
+const { db } = require("../configs/db");
 const { findByRoomAndIndex } = require("./computer.model");
 const { computerClients } = require('../utils/agentCommunication');
 
@@ -216,6 +216,20 @@ const Room = {
                     ).length;
                     resolve(onlineCount);
                 }
+            });
+        });
+    },
+
+    // Files management
+    getComputersInstalledFile: (id, file_id) => {
+        return new Promise((resolve, reject) => {
+            const sql = `SELECT c.id, c.row_index, c.column_index, if.installed_at
+                     FROM computers c
+                     JOIN installed_files if ON c.id = if.computer_id
+                     WHERE c.room_id = ? AND if.file_id = ?`;
+            db.all(sql, [id, file_id], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
             });
         });
     },

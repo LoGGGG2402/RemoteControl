@@ -12,6 +12,7 @@ import ComputerDetails from "./components/Computers/ComputerDetails";
 
 import UsersPage from "./components/Users/UsersPage";
 import ApplicationsPage from "./components/Applications/ApplicationsPage";
+import FilesPage from "./components/Files/FilesPage";
 
 import { WebSocketProvider } from './contexts/WebSocketContext';
 
@@ -67,6 +68,10 @@ function App() {
                                 <Route
                                     path='/applications'
                                     element={<ApplicationsPage user={user} />}
+                                />
+                                <Route
+                                    path='/files'
+                                    element={<FilesPage user={user} />}
                                 />
                             </Routes>
                         </div>

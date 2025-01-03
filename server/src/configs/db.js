@@ -97,8 +97,34 @@ const initDatabase = () => {
                 installed_by INTEGER NOT NULL DEFAULT 1,
                 FOREIGN KEY (computer_id) REFERENCES computers(id),
                 FOREIGN KEY (application_id) REFERENCES applications(id),
-                FOREIGN KEY (installed_by) REFERENCES users(id),
                 PRIMARY KEY (computer_id, application_id)
+            )`
+        );
+
+        // Create files table
+        db.run(
+            `CREATE TABLE IF NOT EXISTS files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                file_path TEXT NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by INTEGER NOT NULL,
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            )`
+        );
+
+        // Create installed files table
+        db.run(
+            `CREATE TABLE IF NOT EXISTS installed_files (
+                computer_id INTEGER NOT NULL,
+                file_id INTEGER NOT NULL,
+                installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                installed_by INTEGER NOT NULL,
+                FOREIGN KEY (computer_id) REFERENCES computers(id),
+                FOREIGN KEY (file_id) REFERENCES files(id),
+                FOREIGN KEY (installed_by) REFERENCES users(id),
+                PRIMARY KEY (computer_id, file_id)
             )`
         );
     } catch (err) {

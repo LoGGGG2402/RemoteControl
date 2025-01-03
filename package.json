@@ -8,6 +8,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "dependencies": {
+    "express-fileupload": "^1.5.1",
     "uuid": "^11.0.3"
   }
 }

@@ -3,6 +3,7 @@ const Computer = require("../models/computer.model");
 const Permissions = require("../models/permission.model");
 const User = require("../models/user.model");
 const Application = require("../models/application.model");
+const File = require("../models/file.model");
 const { sendCommandToComputer } = require("../utils/agentCommunication");
 
 const RoomController = {
@@ -117,6 +118,7 @@ const RoomController = {
         }
     },
 
+    // Application management
     getComputersInstalled: async (req, res) => {
         try {
             const { id: room_id, application_id } = req.params;
@@ -203,6 +205,94 @@ const RoomController = {
             console.error(err);
             if (err.code === "SQLITE_CONSTRAINT") {
                 res.status(400).send("Room or application not found");
+            }
+            if (err.message.includes("Command timeout")) {
+                res.status(400).send("Command timeout");
+            }
+            res.status(500).send("Internal Server Error");
+        }
+    },
+
+    // File management
+    getComputersInstalledFile: async (req, res) => {
+        try {
+            const { id: room_id, file_id } = req.params;
+            const computers = await Room.getComputersInstalledFile(room_id, file_id);
+            res.json(computers);
+        } catch (err) {
+            console.error(err);
+            res.status(500).send("Internal Server Error");
+        }
+    },
+
+    installFile: async (req, res) => {
+        try {
+            const { id: room_id, file_id } = req.params;
+            const user_id = req.user.id;
+            const computers = await Room.getComputers(room_id);
+            const file = await File.findById(file_id);
+
+            if (!computers || !file) {
+                res.status(400).send("Room or file not found");
+                return;
+            }
+
+            const lastPath = file.file_path.split("/").pop();
+
+            const installPromises = computers.map(async (computer) => {
+                if (await Computer.isInstalledFile(computer.id, file_id)) {
+                    return null;
+                }
+
+                if (!computer.online) {
+                    return {
+                        computer_id: computer.id,
+                        success: false,
+                        message: "Computer is offline",
+                        row_index: computer.row_index,
+                        column_index: computer.column_index,
+                    };
+                }
+
+                const response = await sendCommandToComputer(
+                    computer.id,
+                    "install_file",
+                    {
+                        name: file.name,
+                        link: `/uploads/${lastPath}`,
+                    }
+                );
+
+                const { success, message } = response;
+
+                if (!success) {
+                    return {
+                        computer_id: computer.id,
+                        success: false,
+                        message: message,
+                        row_index: computer.row_index,
+                        column_index: computer.column_index,
+                    };
+                }
+
+                await Computer.installFile(computer.id, file_id, user_id);
+                return {
+                    computer_id: computer.id,
+                    success: true,
+                    message: "File installed successfully",
+                    row_index: computer.row_index,
+                    column_index: computer.column_index,
+                };
+            });
+
+            const results = (await Promise.all(installPromises)).filter(
+                (result) => result !== null
+            );
+            res.json(results);
+        } catch (err) {
+            console.error(err);
+            if (err.code === "SQLITE_CONSTRAINT") {
+                res.status(400).send("Room or file not found");
             }
             if (err.message.includes("Command timeout")) {
                 res.status(400).send("Command timeout");

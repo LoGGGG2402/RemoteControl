@@ -155,6 +155,12 @@ export const rooms = {
     installApplication: (data) =>
         api.post(`/room/${data.room_id}/applications/${data.application_id}`),
 
+    // files
+    getComputersInstalledFile: (roomId, fileId) =>
+        api.get(`/room/${roomId}/files/${fileId}`),
+    installFile: (roomId, fileId) =>
+        api.post(`/room/${roomId}/files/${fileId}`),
+
     // user
     getUsers: (id) => api.get(`/room/${id}/users`),
     addUser: (data) => api.post("/room/users", data),
@@ -185,6 +191,15 @@ export const computers = {
             data: { application_id: applicationId },
         }),
 
+    // files
+    getFiles: (id) => api.get(`/computer/${id}/files`),
+    installFile: (computerId, fileId) => 
+        api.post(`/computer/${computerId}/files`, { file_id: fileId }),
+    uninstallFile: (computerId, fileId) =>
+        api.delete(`/computer/${computerId}/files`, {
+            data: { file_id: fileId },
+        }),
+
     updateNotes: (id, data) => 
         api.put(`/computer/${id}/notes`, data),
 
@@ -206,6 +221,26 @@ export const applications = {
     create: (data) => api.post("/application", data),
     delete: (id) => api.delete(`/application/${id}`),
     update: (id, data) => api.put(`/application/${id}`, data),
+};
+
+export const files = {
+    all: () => api.get("/file"),
+    create: (data) => {
+        console.log(data);
+        return api.post("/file", data, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    },
+    delete: (id) => api.delete(`/file/${id}`),
+    update: (id, data) => {
+        return api.put(`/file/${id}`, data, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+    }
 };
 
 export default api;

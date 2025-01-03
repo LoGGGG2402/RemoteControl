@@ -4,8 +4,11 @@ import websocket  # type: ignore
 from agent_ui import show_error, show_warning
 import system_info
 import choco_handle
+import file_handle
 import threading
 import queue
+import os
+import shutil
 
 
 class CommandHandler:
@@ -42,15 +45,15 @@ class CommandHandler:
                     "type": "task_completed",
                     "command_type": command_type,
                     "task_id": task_id,
-                    "success": success,
+                    "success": success and result[0],
                     "message": (
-                        result if not success else f"Task completed successfully"
+                        result[1] if not success else f"Task completed successfully"
                     ),
                     "data": result if success else None,
                 }
                 print("\n" + "=" * 30)
                 print(f"[TASK COMPLETED] {command_type}")
-                print(f"[SUCCESS] {success}")
+                print(f"[SUCCESS] {success and result[0]}")
                 print(f"[MESSAGE] {response['message']}")
                 if success:
                     print(f"[DATA] {response['data']}")
@@ -206,6 +209,33 @@ class CommandHandler:
                     "message": f"Uninstallation of {app_name} started",
                     "data": {"status": "wait", "task_id": task_id},
                 }
+
+            elif command_type == "install_file":
+                if not params or "link" not in params:
+                    return {"success": False, "message": "File path is required"}
+
+                task_id = params.get("task_id")
+                self._execute_heavy_task(
+                    file_handle.install_file,
+                    self.config["server_ip"],
+                    params.get("name"),
+                    params.get("link"),
+                    command_type=command_type,
+                    task_id=task_id,
+                )
+                return {
+                    "success": True,
+                    "message": f"Installation of {params.get('name')} started",
+                    "data": {"status": "wait", "task_id": task_id},
+                }
+
+            elif command_type == "remove_file":
+                if not params or "name" not in params:
+                    return {"success": False, "message": "File name is required"}
+
+                file_name = params.get("name")
+                success, message = file_handle.remove_file(file_name)
+                return {"success": success, "message": message}
 
             else:
                 return {"success": False, "message": f"Unknown command: {command_type}"}

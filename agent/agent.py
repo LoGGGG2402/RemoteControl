@@ -4,6 +4,7 @@ import time
 import threading
 import platform
 import choco_handle
+import file_handle
 import requests  # type: ignore
 import system_info
 import sys
@@ -157,8 +158,30 @@ class Agent:
                 show_error("Connection Error", str(e))
                 return False
 
+
+    def update_list_file_and_application(self):
+        try:
+            list_file = file_handle.get_files()
+            success, list_application = choco_handle.list_installed_packages()
+            if not success:
+                return f"Error getting installed applications: {list_application}"
+
+            response = requests.post(
+                f"{self.api_url}/update-list-file-and-application/{self.computer_id}",
+                json={"listFile": list_file, "listApplication": list_application},
+                timeout=5
+            )
+            return response.text
+        except requests.exceptions.Timeout:
+            return "Request timed out while updating lists"
+        except requests.exceptions.ConnectionError:
+            return "Connection error while updating lists" 
+        except Exception as e:
+            return f"Error updating lists: {str(e)}"
+
     def run(self):
         if self.connect_to_server():
+            self.update_list_file_and_application()
             self.command_handler = CommandHandler(self.computer_id, self.config)
             command_thread = threading.Thread(
                 target=self.command_handler.start_websocket

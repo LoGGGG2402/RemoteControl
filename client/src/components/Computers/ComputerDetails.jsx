@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { computers, applications as appsApi } from "../../utils/api";
+import { computers, applications as appsApi, files as filesApi } from "../../utils/api";
 import {
     FaServer,
     FaNetworkWired,
@@ -34,6 +34,8 @@ const ComputerDetails = () => {
     const [networkActivities, setNetworkActivities] = useState([]);
     const [applications, setApplications] = useState([]);
     const [availableApps, setAvailableApps] = useState([]);
+    const [files, setFiles] = useState([]);
+    const [availableFiles, setAvailableFiles] = useState([]);
     const [activeTab, setActiveTab] = useState(initialTab);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -42,6 +44,7 @@ const ComputerDetails = () => {
     const [processesLoading, setProcessesLoading] = useState(false);
     const [networkLoading, setNetworkLoading] = useState(false);
     const [appsLoading, setAppsLoading] = useState(false);
+    const [filesLoading, setFilesLoading] = useState(false);
     const [uninstalling, setUninstalling] = useState(false);
     const [uninstallError, setUninstallError] = useState(null);
     const [editing, setEditing] = useState(false);
@@ -72,6 +75,8 @@ const ComputerDetails = () => {
                 await loadProcesses();
             } else if (initialTab === "network") {
                 await loadNetworkActivities();
+            } else if (initialTab === "files" && files.length === 0) {
+                await loadFilesData();
             }
         };
         init();
@@ -161,6 +166,23 @@ const ComputerDetails = () => {
         }
     };
 
+    const loadFilesData = async () => {
+        setFilesLoading(true);
+        try {
+            const [filesRes, availableRes] = await Promise.all([
+                computers.getFiles(id),
+                filesApi.all(),
+            ]);
+            setFiles(filesRes.data || []);
+            setAvailableFiles(availableRes.data);
+        } catch (err) {
+            console.log(err);
+            setError(err.response?.data || "Failed to load files");
+        } finally {
+            setFilesLoading(false);
+        }
+    };
+
     const handleInstallApp = async (application_id) => {
         setInstalling(true);
         setInstallError(null);
@@ -223,6 +245,65 @@ const ComputerDetails = () => {
         }
     };
 
+    const handleInstallFile = async (file_id) => {
+        setInstalling(true);
+        setInstallError(null);
+
+        if (!computer.online) {
+            setInstallError(
+                "Computer is offline. Installation requires the computer to be online."
+            );
+            setInstalling(false);
+            return;
+        }
+
+        try {
+            await computers.installFile(id, file_id);
+            // Refresh files list after successful installation
+            await loadFilesData();
+        } catch (err) {
+            setInstallError(
+                err.response?.data?.error || "Failed to install file"
+            );
+            console.error("Installation error:", err);
+        } finally {
+            setInstalling(false);
+        }
+    };
+
+    const handleUninstallFile = async (file_id) => {
+        if (
+            !window.confirm(
+                "Are you sure you want to uninstall this file?"
+            )
+        ) {
+            return;
+        }
+
+        setUninstalling(true);
+        setUninstallError(null);
+
+        if (!computer.online) {
+            setUninstallError(
+                "Computer is offline. Uninstallation requires the computer to be online."
+            );
+            setUninstalling(false);
+            return;
+        }
+        try {
+            await computers.uninstallFile(id, file_id);
+            // Refresh files list after successful uninstallation
+            await loadFilesData();
+        } catch (err) {
+            setUninstallError(
+                err.response?.data?.error || "Failed to uninstall file"
+            );
+            console.error("Uninstallation error:", err);
+        } finally {
+            setUninstalling(false);
+        }
+    };
+
     const handleUpdateNotesAndErrors = async () => {
         try {
             await computers.updateNotes(id, {
@@ -246,6 +327,8 @@ const ComputerDetails = () => {
             loadNetworkActivities();
         } else if (tab === "applications" && applications.length === 0) {
             loadApplicationsData();
+        } else if (tab === "files" && files.length === 0) {
+            loadFilesData();
         }
     };
 
@@ -666,7 +749,7 @@ const ComputerDetails = () => {
             <div className='bg-white rounded-lg shadow-md'>
                 <div className='border-b'>
                     <nav className='flex'>
-                        {["applications", "processes", "network"].map((tab) => (
+                        {["applications", "processes", "network", "files"].map((tab) => (
                             <button
                                 key={tab}
                                 className={`px-6 py-3 font-medium ${
@@ -1003,6 +1086,118 @@ const ComputerDetails = () => {
                                                         onClick={() =>
                                                             handleInstallApp(
                                                                 app.id
+                                                            )
+                                                        }
+                                                        disabled={installing}
+                                                        className={`px-3 py-1 rounded ${
+                                                            installing
+                                                                ? "bg-gray-300"
+                                                                : "bg-blue-500 hover:bg-blue-600"
+                                                        } text-white`}
+                                                    >
+                                                        {installing ? (
+                                                            <FaSpinner className='animate-spin' />
+                                                        ) : (
+                                                            <FaDownload />
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        ))}
+
+                    {activeTab === "files" &&
+                        (filesLoading ? (
+                            <div className='flex items-center justify-center p-4'>
+                                <FaSpinner className='animate-spin text-2xl text-blue-500' />
+                            </div>
+                        ) : (
+                            <div>
+                                <h3 className='text-lg font-medium mb-4'>
+                                    Installed Files
+                                </h3>
+                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-8'>
+                                    {files.map((file) => (
+                                        <div
+                                            key={file.id}
+                                            className='p-4 border rounded-lg'
+                                        >
+                                            <div className='flex justify-between items-start'>
+                                                <div>
+                                                    <h4 className='font-medium'>
+                                                        {file.name}
+                                                    </h4>
+                                                    <p className='text-sm text-gray-500'>
+                                                        Installed by:{" "}
+                                                        {file.full_name}
+                                                    </p>
+                                                    <p className='text-sm text-gray-500'>
+                                                        At:{" "}
+                                                        {new Date(
+                                                            file.installed_at
+                                                        ).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() =>
+                                                        handleUninstallFile(
+                                                            file.id
+                                                        )
+                                                    }
+                                                    disabled={uninstalling}
+                                                    className={`px-3 py-1 rounded ${
+                                                        uninstalling
+                                                            ? "bg-gray-300"
+                                                            : "bg-red-500 hover:bg-red-600"
+                                                    } text-white`}
+                                                >
+                                                    {uninstalling ? (
+                                                        <FaSpinner className='animate-spin' />
+                                                    ) : (
+                                                        <FaTrash />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <h3 className='text-lg font-medium mb-4'>
+                                    Available Files
+                                </h3>
+                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                    {availableFiles
+                                        .filter(
+                                            (file) =>
+                                                !files.find(
+                                                    (installedFile) =>
+                                                        installedFile.id ===
+                                                        file.id
+                                                )
+                                        )
+                                        .map((file) => (
+                                            <div
+                                                key={file.id}
+                                                className='p-4 border rounded-lg'
+                                            >
+                                                <div className='flex justify-between items-start'>
+                                                    <div>
+                                                        <h4 className='font-medium'>
+                                                            {file.name}
+                                                        </h4>
+                                                        <p className='text-sm text-gray-500'>
+                                                            {file.description}
+                                                        </p>
+                                                        <p className='text-sm text-gray-500'>
+                                                            Uploaded by: {file.full_name}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() =>
+                                                            handleInstallFile(
+                                                                file.id
                                                             )
                                                         }
                                                         disabled={installing}

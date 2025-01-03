@@ -1,4 +1,4 @@
-const { db } = require("../db");
+const { db } = require("../configs/db");
 const { findById } = require("./room.model");
 
 const User = {

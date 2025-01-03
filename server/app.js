@@ -4,10 +4,11 @@ const cookieParser = require("cookie-parser");
 const logger = require("morgan");
 const cors = require("cors");
 const http = require('http');
+const fileUpload = require('express-fileupload');
 
 const indexRouter = require("./src/routers/index");
-const config = require("./src/config");
-const { initDatabase } = require("./src/db");
+const config = require("./src/configs/config");
+const { initDatabase } = require("./src/configs/db");
 const { initializeWebSocket } = require("./src/utils/agentCommunication");
 const websocketMiddleware = require('./src/middlewares/websocket.middleware');
 
@@ -27,6 +28,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+    index: false,
+    dotfiles: 'deny',
+    setHeaders: (res) => {
+        res.set('Content-Disposition', 'attachment');
+    }
+}));
+app.use(fileUpload({
+    createParentPath: true,
+    limits: { 
+        fileSize: 1000 * 1024 * 1024 // 1Gb max file size
+    },
+}));
 
 // Routes
 app.use("/api", indexRouter);

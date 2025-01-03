@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { rooms, applications as appsApi } from "../../utils/api";
+import { rooms, applications as appsApi, files as filesApi } from "../../utils/api";
 import {
     FaSpinner,
     FaDesktop,
@@ -31,6 +31,8 @@ const RoomDetails = ({ user }) => {
     const [installing, setInstalling] = useState(false);
     const [installError, setInstallError] = useState(null);
     const [installationResults, setInstallationResults] = useState({});
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [availableFiles, setAvailableFiles] = useState([]);
 
     const generatePlaceholders = (
         row_count,
@@ -94,35 +96,44 @@ const RoomDetails = ({ user }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [appsRes] = await Promise.all([appsApi.all()]);
+                const [appsRes, filesRes] = await Promise.all([
+                    appsApi.all(),
+                    filesApi.all()
+                ]);
                 setAvailableApps(appsRes.data);
+                setAvailableFiles(filesRes.data);
             } catch (err) {
-                console.error("Failed to fetch applications:", err);
+                console.error("Failed to fetch data:", err);
             }
         };
         fetchData();
     }, []);
 
     useEffect(() => {
-        // remove the previous installation results when changing the selected app
+        // remove the previous installation results when changing the selected app/file
         setInstallationResults({});
         setInstallError(null);
         setInstalledComputers([]);
 
         const fetchInstalledComputers = async () => {
-            if (!selectedApp) return;
+            if (!selectedApp && !selectedFile) return;
             try {
-                const response = await rooms.getComputersInstalled({
-                    room_id: id,
-                    application_id: selectedApp,
-                });
+                let response;
+                if (selectedApp) {
+                    response = await rooms.getComputersInstalled({
+                        room_id: id,
+                        application_id: selectedApp,
+                    });
+                } else {
+                    response = await rooms.getComputersInstalledFile(id, selectedFile);
+                }
                 setInstalledComputers(response.data);
             } catch (err) {
                 console.error("Failed to fetch installed computers:", err);
             }
         };
         fetchInstalledComputers();
-    }, [selectedApp, id]);
+    }, [selectedApp, selectedFile, id]);
 
     const handleUsersUpdate = async () => {
         const response = await rooms.getUsers(id);
@@ -163,6 +174,39 @@ const RoomDetails = ({ user }) => {
         } catch (err) {
             setInstallError(
                 err.response?.data || "Failed to install application"
+            );
+        } finally {
+            setInstalling(false);
+        }
+    };
+
+    const handleInstallFile = async () => {
+        if (
+            !selectedFile ||
+            !window.confirm(
+                "Install file on all computers in this room?"
+            )
+        )
+            return;
+
+        setInstalling(true);
+        setInstallError(null);
+        try {
+            const resp = await rooms.installFile(id, selectedFile);
+
+            // Store results mapped by computer_id
+            const resultsMap = resp.data.reduce((acc, result) => {
+                acc[result.computer_id] = result;
+                return acc;
+            }, {});
+            setInstallationResults(resultsMap);
+
+            // Refresh installed computers list
+            const response = await rooms.getComputersInstalledFile(id, selectedFile);
+            setInstalledComputers(response.data);
+        } catch (err) {
+            setInstallError(
+                err.response?.data || "Failed to install file"
             );
         } finally {
             setInstalling(false);
@@ -233,19 +277,40 @@ const RoomDetails = ({ user }) => {
                 <div className='flex items-center gap-4 mb-4'>
                     <select
                         className='border rounded p-2 flex-grow'
-                        value={selectedApp || ""}
-                        onChange={(e) => setSelectedApp(e.target.value || null)}
+                        value={selectedApp || selectedFile || ""}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (value.startsWith('app_')) {
+                                setSelectedApp(value.replace('app_', ''));
+                                setSelectedFile(null);
+                            } else if (value.startsWith('file_')) {
+                                setSelectedFile(value.replace('file_', ''));
+                                setSelectedApp(null);
+                            } else {
+                                setSelectedApp(null);
+                                setSelectedFile(null);
+                            }
+                        }}
                     >
-                        <option value=''>Filter by application...</option>
-                        {availableApps.map((app) => (
-                            <option key={app.id} value={app.id}>
-                                {app.name}
-                            </option>
-                        ))}
+                        <option value=''>Filter by application/file...</option>
+                        <optgroup label="Applications">
+                            {availableApps.map((app) => (
+                                <option key={`app_${app.id}`} value={`app_${app.id}`}>
+                                    {app.name}
+                                </option>
+                            ))}
+                        </optgroup>
+                        <optgroup label="Files">
+                            {availableFiles.map((file) => (
+                                <option key={`file_${file.id}`} value={`file_${file.id}`}>
+                                    {file.name}
+                                </option>
+                            ))}
+                        </optgroup>
                     </select>
-                    {selectedApp && (
+                    {(selectedApp || selectedFile) && (
                         <button
-                            onClick={handleInstallApp}
+                            onClick={selectedApp ? handleInstallApp : handleInstallFile}
                             disabled={installing}
                             className='bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center gap-2 disabled:bg-gray-400'
                         >
