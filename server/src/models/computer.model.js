@@ -17,46 +17,10 @@ const Computer = {
             const sql1 = `INSERT INTO computers (room_id, row_index, column_index, ip_address, mac_address, hostname) 
                         VALUES (?, ?, ?, ?, ?, ?)`;
 
-            const sql2 = `INSERT INTO heartbeatd_computers (computer_id) VALUES (last_insert_rowid())
-                          ON CONFLICT(computer_id) DO NOTHING`;
-
-            db.run(
-                sql1,
-                [
-                    room_id,
-                    row_index,
-                    column_index,
-                    ip_address,
-                    mac_address,
-                    hostname,
-                ],
-                (err) => {
-                    if (err) {
-                        db.run("ROLLBACK");
-                        return reject(err);
-                    }
-
-                    db.run(sql2, [], (err) => {
-                        if (err) {
-                            db.run("ROLLBACK");
-                            return reject(err);
-                        }
-
-                        db.run("COMMIT", (err) => {
-                            if (err) reject(err);
-                            else {
-                                db.get(
-                                    "SELECT last_insert_rowid() as id",
-                                    (err, row) => {
-                                        if (err) reject(err);
-                                        else resolve(row.id);
-                                    }
-                                );
-                            }
-                        });
-                    });
-                }
-            );
+            db.run(sql1, [room_id, row_index, column_index, ip_address, mac_address, hostname], (err) => {
+                if (err) reject(err);
+                else resolve(computer.id);
+            });
         });
     },
     findById: (id) => {

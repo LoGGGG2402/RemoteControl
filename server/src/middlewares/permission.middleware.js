@@ -1,5 +1,5 @@
 const Permissions = require("../models/permission.model");
-
+const Computer = require("../models/computer.model");
 const permissionMiddleware = (action, scope) => async (req, res, next) => {
     try {
         const user = req.user;
@@ -18,7 +18,10 @@ const permissionMiddleware = (action, scope) => async (req, res, next) => {
         }
 
         if (scope === "global") {
-            return res.status(403).send("Permission denied");
+            return res.status(403).send({
+                message: "Permission denied",
+                error: "Permission denied",
+            });
         }
 
         if (scope === "room") {
@@ -38,6 +41,10 @@ const permissionMiddleware = (action, scope) => async (req, res, next) => {
             if (action === "manage" && permission.can_manage === 1) {
                 return next();
             }
+            return res.status(403).send({
+                message: "Permission denied",
+                error: "Permission denied",
+            });
         }
 
         if (scope === "computer") {
@@ -62,11 +69,19 @@ const permissionMiddleware = (action, scope) => async (req, res, next) => {
             if (action === "manage" && permission.can_manage === 1) {
                 return next();
             }
+            return res.status(403).send({
+                message: "Permission denied",
+                error: "Permission denied",
+            });
         }
 
         next();
     } catch (err) {
-        res.status(403).send("Permission denied");
+        console.log(err);
+        res.status(403).send({
+            message: "Permission denied",
+            error: "Permission denied",
+        });
     }
 };
 

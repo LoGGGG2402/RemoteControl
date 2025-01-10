@@ -24,7 +24,7 @@ import {
     FaEdit,
     FaCheck,
 } from "react-icons/fa";
-
+import { toast } from "react-toastify";
 const ComputerDetails = () => {
     const { id } = useParams();
     const location = useLocation();
@@ -347,19 +347,22 @@ const ComputerDetails = () => {
             setErrorDescription('');
             setIsAddingError(false);
         } catch (err) {
-            setUpdateError("Failed to add error");
+            let err_rev = err.response?.data?.error || "Failed to add error";
+            // display error message as a toast 
+            toast.error(err_rev);
         }
     };
 
     const handleResolveError = async (errorId) => {
         try {
             await computers.resolveError(computer.id, errorId);
-            
             // Reload errors
             const response = await computers.getErrors(computer.id);
             setErrors(response.data);
         } catch (err) {
-            setUpdateError("Failed to resolve error");
+            let err_rev = err.response?.data?.error || "Failed to resolve error";
+            // display error message as a toast 
+            toast.error(err_rev);
         }
     };
 
