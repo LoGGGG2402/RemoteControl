@@ -2,7 +2,6 @@
 websocket-client
 requests
 psutil
-tabulate
 pywin32
 
 # Dependencies cho việc build installer

@@ -64,3 +64,10 @@ server/.env*
 ehthumbs.db
 Thumbs.db
 server/db.sqlite
+
+# Python files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
