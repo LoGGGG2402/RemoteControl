@@ -25,20 +25,36 @@ def build_agent():
                 "--onefile",
                 "--name=agent",
                 "--icon=agent/build/icon.ico",
+                # Basic dependencies
                 "--hidden-import=websocket",
+                "--hidden-import=websocket-client",
                 "--hidden-import=requests",
                 "--hidden-import=psutil",
                 "--hidden-import=win32api",
                 "--hidden-import=win32event",
                 "--hidden-import=winerror",
                 "--hidden-import=PyQt5",
+                # System tray related imports
+                "--hidden-import=pystray",
+                "--hidden-import=PIL",
+                "--hidden-import=PIL.Image",
+                "--hidden-import=PIL.ImageDraw",
+                "--hidden-import=pillow",
+                # Core module imports
                 "--hidden-import=agent.core.command_handler",
+                "--hidden-import=agent.core.agent",
+                # Helper modules
                 "--hidden-import=agent.core.helper.system_info",
                 "--hidden-import=agent.core.helper.choco_handle",
                 "--hidden-import=agent.core.helper.file_handle",
-                "--hidden-import=agent.core.helper.logger",
-                "--hidden-import=agent.core.ui",
-                "--hidden-import=agent.core.agent",
+                # Utils modules
+                "--hidden-import=agent.core.utils.logger",
+                "--hidden-import=agent.core.utils.ui",
+                "--hidden-import=agent.core.utils.system_tray",
+                "--hidden-import=agent.core.utils.install_service",
+                # Add collect-all for PIL and pystray to ensure all modules are included
+                "--collect-all=PIL",
+                "--collect-all=pystray",
             ]
         )
         print("Build agent thành công!")

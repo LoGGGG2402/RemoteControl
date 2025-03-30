@@ -71,3 +71,23 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Agent build artifacts
+build/
+dist/
+*.spec
+agent.spec
+agent/build/
+agent/dist/
+*.pkg
+*.exe
+*.manifest
+*.toc
+*.zip
+*.pyz
+warn-*.txt
+xref-*.html
+**/localpycs/
+**/.pytest_cache/
+.coverage
+htmlcov/

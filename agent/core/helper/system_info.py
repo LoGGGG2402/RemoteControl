@@ -1,5 +1,10 @@
+# Standard library imports
+import platform
 import socket
+import datetime
 import uuid
+
+# Third-party library imports
 import psutil
 import logging
 

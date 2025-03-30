@@ -3,6 +3,8 @@ websocket-client
 requests
 psutil
 pywin32
+pystray
+pillow
 
 # Dependencies cho việc build installer
 pyinstaller

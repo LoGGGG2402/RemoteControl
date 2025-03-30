@@ -1,32 +1,47 @@
+// Core dependencies
 const express = require("express");
+const http = require('http');
 const path = require("path");
+
+// Middleware dependencies
+const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
-const cors = require("cors");
-const http = require('http');
 const fileUpload = require('express-fileupload');
 
+// Application modules
 const indexRouter = require("./src/routers/index");
 const config = require("./src/configs/config");
 const { initDatabase } = require("./src/configs/db");
 const { initializeWebSocket } = require("./src/utils/agentCommunication");
 const websocketMiddleware = require('./src/middlewares/websocket.middleware');
 
+// Initialize express application
 const app = express();
 
-app.use(
-    cors({
-        origin: "*",
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Sec-WebSocket-Protocol']
-    })
-);
+// CORS configuration
+app.use(cors({
+    origin: "*",
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Sec-WebSocket-Protocol']
+}));
 
-app.use(logger(config.logLevel));
+// Request parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(logger(config.logLevel));
+
+// File handling middleware
+app.use(fileUpload({
+    createParentPath: true,
+    limits: { 
+        fileSize: 1000 * 1024 * 1024 // 1GB max file size
+    },
+}));
+
+// Static file serving
 app.use(express.static(path.join(__dirname, "public")));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
     index: false,
@@ -35,20 +50,14 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
         res.set('Content-Disposition', 'attachment');
     }
 }));
-app.use(fileUpload({
-    createParentPath: true,
-    limits: { 
-        fileSize: 1000 * 1024 * 1024 // 1Gb max file size
-    },
-}));
 
-// Routes
+// API routes
 app.use("/api", indexRouter);
 
-// Database
+// Database initialization
 initDatabase();
 
-// Thêm middleware này trước khi khởi tạo WebSocket
+// WebSocket handling
 app.use('/ws', (req, res, next) => {
     if (req.headers.upgrade && req.headers.upgrade.toLowerCase() === 'websocket') {
         return next();

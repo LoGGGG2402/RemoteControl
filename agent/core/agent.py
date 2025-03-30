@@ -1,25 +1,39 @@
+# Standard library imports
 import os
+import sys
 import json
 import time
 import threading
 import platform
-import agent.core.helper.choco_handle as choco_handle
-import agent.core.helper.file_handle as file_handle
+import ctypes
+
+# Third-party library imports
 import requests
-import agent.core.helper.system_info as system_info
-import sys
-from agent.core.command_handler import CommandHandler
 import win32event
 import win32api
 import winerror
-import agent.core.helper.logger as logger
-from agent.core.ui import SetupDialog, show_error
+
+# Local application imports
+import agent.core.helper.choco_handle as choco_handle
+import agent.core.helper.file_handle as file_handle
+import agent.core.helper.system_info as system_info
+import agent.core.utils.install_service as install_service
+import agent.core.utils.logger as logger
+from agent.core.command_handler import CommandHandler
+from agent.core.utils.ui import SetupDialog, show_error
+from agent.core.utils.system_tray import SystemTrayIcon, is_admin
 
 
 class Agent:
     def __init__(self):
         if platform.system() != "Windows":
             logger.error("This agent only runs on Windows systems")
+            sys.exit(1)
+            
+        # Kiểm tra quyền admin khi khởi động
+        if not is_admin():
+            logger.error("This agent requires administrator privileges to run")
+            show_error("Admin Rights Required", "This application must be run as administrator. Please right-click and select 'Run as administrator'.")
             sys.exit(1)
 
         # Tạo Windows Named Mutex để chống chạy nhiều instance
@@ -42,6 +56,38 @@ class Agent:
         self.row_index = self.config["row_index"]
         self.column_index = self.config["column_index"]
         self.ws_handler = None
+        self.service_name = "RemoteControlAgent"
+        self.service_destination_path = os.path.join(os.environ.get('ProgramFiles', 'C:\\Program Files'), 'RemoteControl')
+        
+        # Khởi tạo biểu tượng System Tray với callback cập nhật cấu hình
+        self.system_tray = SystemTrayIcon(update_config_callback=self.update_config)
+        
+    def update_config(self):
+        """Cập nhật cấu hình khi admin yêu cầu từ System Tray"""
+        if is_admin():
+            logger.info("Admin requested configuration update")
+            dialog = SetupDialog(initial_values=self.config)
+            new_config = dialog.get_result()
+            
+            if new_config:
+                # Cập nhật cấu hình
+                self.config.update(new_config)
+                config_path = os.path.join(
+                    os.getenv("APPDATA"), "RemoteControl", "agent_config.json"
+                )
+                with open(config_path, "w") as f:
+                    json.dump(self.config, f)
+                
+                logger.info("Configuration updated successfully")
+                self.system_tray.update_status("Config Updated")
+                
+                # Khởi động lại kết nối
+                self.system_tray.update_status("Reconnecting...")
+                if self.connect_to_server():
+                    self.update_list_file_and_application()
+        else:
+            logger.warning("Non-admin user attempted to update configuration")
+            show_error("Permission Denied", "Only administrators can update the configuration.")
 
     def load_or_create_config(self):
         config_dir = os.path.join(os.getenv("APPDATA"), "RemoteControl")
@@ -57,6 +103,11 @@ class Agent:
             if not new_config:
                 logger.error("No configuration provided. Exiting.")
                 sys.exit(1)
+            
+            # Save the new configuration
+            with open(config_path, "w") as f:
+                json.dump(new_config, f)
+            return new_config
 
         try:
             with open(config_path, "r") as f:
@@ -87,6 +138,9 @@ class Agent:
 
                 self.computer_id = data["id"]
                 logger.info(f"Connected successfully. Computer ID: {self.computer_id}")
+                
+                # Cập nhật trạng thái System Tray
+                self.system_tray.update_status("Connected")
                 return True
 
             except requests.exceptions.ConnectionError:
@@ -94,22 +148,33 @@ class Agent:
                     f"Could not connect to server at {self.api_url}. Please check if server is running and link is correct."
                 )
 
-                # Cho phép người dùng nhập lại server link
-                dialog = SetupDialog()
-                new_config = dialog.get_result()
-                if not new_config:
-                    continue
+                # Cập nhật trạng thái System Tray
+                self.system_tray.update_status("Connection Failed")
 
-                self.config.update(new_config)
-                config_path = os.path.join(
-                    os.getenv("APPDATA"), "RemoteControl", "agent_config.json"
-                )
-                with open(config_path, "w") as f:
-                    json.dump(self.config, f)
-                continue
+                # Cho phép người dùng nhập lại server link nếu là admin
+                if is_admin():
+                    dialog = SetupDialog(initial_values=self.config)
+                    new_config = dialog.get_result()
+                    if not new_config:
+                        continue
+
+                    self.config.update(new_config)
+                    config_path = os.path.join(
+                        os.getenv("APPDATA"), "RemoteControl", "agent_config.json"
+                    )
+                    with open(config_path, "w") as f:
+                        json.dump(self.config, f)
+                    continue
+                else:
+                    # Nếu không phải admin, chỉ hiển thị thông báo lỗi
+                    show_error("Connection Error", 
+                               "Could not connect to server. Please contact your administrator.")
+                    return False
 
             except Exception as e:
                 logger.error(f"Connection Error: {str(e)}")
+                # Cập nhật trạng thái System Tray
+                self.system_tray.update_status("Error")
                 return False
 
     def update_list_file_and_application(self):
@@ -133,24 +198,51 @@ class Agent:
             return f"Error updating lists: {str(e)}"
 
     def run(self):
+        # Khởi động biểu tượng System Tray
+        self.system_tray.start()
+        self.system_tray.update_status("Starting")
+        
         if not choco_handle.is_chocolatey_installed():
             # Install Chocolatey for first time setup
             logger.info("Installing Chocolatey for the first time setup...")
+            self.system_tray.update_status("Installing Chocolatey...")
             success, message = choco_handle.install_chocolatey()
             if not success:
                 logger.error(f"Failed to install Chocolatey: {message}")
                 show_error("Error", f"Failed to install Chocolatey: {message}")
+                self.system_tray.update_status("Error: Chocolatey Install Failed")
                 sys.exit(1)
             logger.info("Chocolatey installed successfully.")
 
+        self.system_tray.update_status("Connecting...")
         if self.connect_to_server():
             self.update_list_file_and_application()
+            
+            # Di chuyển file thực thi đến thư mục thích hợp và đăng ký như một service
+            success, result = install_service.move_executable(self.service_destination_path)
+            if success and isinstance(result, str) and os.path.exists(result):
+                # Nếu file thực thi được di chuyển thành công, đăng ký nó như một service
+                self.system_tray.update_status("Registering service...")
+                service_success, service_message = install_service.register_as_service(
+                    self.service_name, result
+                )
+                if service_success:
+                    logger.info(service_message)
+                    self.system_tray.update_status("Service registered")
+                else:
+                    logger.error(f"Failed to register service: {service_message}")
+                    self.system_tray.update_status("Service registration failed")
+            
+            # Start the command handler
+            self.system_tray.update_status("Starting WebSocket...")
             self.command_handler = CommandHandler(self.computer_id, self.config)
             command_thread = threading.Thread(
                 target=self.command_handler.start_websocket
             )
             command_thread.daemon = True
             command_thread.start()
+            
+            self.system_tray.update_status("Running")
 
             while True:
                 time.sleep(1)

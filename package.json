@@ -5,7 +5,9 @@
   "scripts": {
     "client": "cd client && npm run dev",
     "server": "cd server && npm run dev",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd client && npm run build && mv dist ../server/public",
+    "start": "cd server && npm run start"
   },
   "dependencies": {
     "express-fileupload": "^1.5.1",

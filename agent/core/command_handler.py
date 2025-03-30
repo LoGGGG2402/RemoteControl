@@ -1,20 +1,28 @@
+# Standard library imports
 import json
+import os
+import threading
 import time
+
+# Third-party library imports
 import websocket
-import agent.core.helper.system_info as system_info
+
+# Local application imports
 import agent.core.helper.choco_handle as choco_handle
 import agent.core.helper.file_handle as file_handle
-import threading
+import agent.core.helper.system_info as system_info
+from agent.core.utils.logger import info, error, warning
 import queue
-from agent.core.helper.logger import info, error, warning
-import os
+
 
 class CommandHandler:
     def __init__(self, computer_id, config):
         self.computer_id = computer_id
         self.config = config
         self.ws = None
-        self.ws_url = f'ws://{self.config["server_link"].split("://")[1]}/websocket'
+        # Determine protocol based on server_link
+        server_protocol = "wss" if self.config["server_link"].startswith("https") else "ws"
+        self.ws_url = f'{server_protocol}://{self.config["server_link"].split("://")[1]}/websocket'
         self.task_queue = queue.Queue()
         self.worker_thread = threading.Thread(target=self._process_tasks, daemon=True)
         self.worker_thread.start()

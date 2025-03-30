@@ -5,7 +5,7 @@ import sys
 
 
 class SetupDialog:
-    def __init__(self):
+    def __init__(self, initial_values=None):
         self.result = None
 
         root = tk.Tk()
@@ -30,7 +30,14 @@ class SetupDialog:
         self.row_index.grid(row=2, column=1, padx=5, pady=5)
         self.column_index.grid(row=3, column=1, padx=5, pady=5)
 
-        self.server_link.insert(0, "http://localhost:3000")
+        # Điền các giá trị ban đầu nếu có
+        if initial_values:
+            self.server_link.insert(0, initial_values.get("server_link", "http://localhost:3000"))
+            self.room_name.insert(0, initial_values.get("room_name", ""))
+            self.row_index.insert(0, str(initial_values.get("row_index", "")))
+            self.column_index.insert(0, str(initial_values.get("column_index", "")))
+        else:
+            self.server_link.insert(0, "http://localhost:3000")
 
         ttk.Button(frame, text="OK", command=self.on_submit).grid(
             row=4, column=0, columnspan=2, pady=20
