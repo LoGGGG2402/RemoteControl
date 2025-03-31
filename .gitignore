@@ -91,3 +91,6 @@ xref-*.html
 **/.pytest_cache/
 .coverage
 htmlcov/
+server/db.sqlite-journal
+**/package-lock.json
+package-lock.json

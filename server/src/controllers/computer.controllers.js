@@ -412,22 +412,14 @@ const ComputerController = {
             const computer = await Computer.findById(id);
 
             if (!computer) {
-                res.status(404).send("Computer not found");
-                return;
+                return res.status(404).send("Computer not found");
             }
 
-            const sql = `SELECT * FROM computer_errors WHERE computer_id = ? ORDER BY created_at DESC`;
-            db.all(sql, [id], (err, rows) => {
-                if (err) {
-                    console.error("Error getting computer errors:", err);
-                    res.status(500).json({ error: "Internal server error" });
-                } else {
-                    res.json(rows);
-                }
-            });
+            const errors = await Computer.getErrors(id);
+            return res.json(errors);
         } catch (error) {
             console.error("Error getting computer errors:", error);
-            res.status(500).json({ error: "Internal server error" });
+            return res.status(500).json({ error: "Internal server error" });
         }
     }
 };

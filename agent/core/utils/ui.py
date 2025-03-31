@@ -43,8 +43,14 @@ class SetupDialog:
             row=4, column=0, columnspan=2, pady=20
         )
 
-        root.protocol("WM_DELETE_WINDOW", lambda: sys.exit(1))
+        # Update to handle window close without exiting the application
+        root.protocol("WM_DELETE_WINDOW", self.on_cancel)
         self.root = root
+
+    def on_cancel(self):
+        """Handle window closure by setting result to None and destroying the window"""
+        self.result = None
+        self.root.destroy()
 
     def validate_server_link(self, link):
         """Validate that the server link is a proper URL format"""
@@ -54,8 +60,8 @@ class SetupDialog:
         try:
             server_link = self.server_link.get().strip()
             room_name = self.room_name.get().strip()
-            row_index = int(self.row_index.get())
-            column_index = int(self.column_index.get())
+            row_index = int(self.row_index.get()) - 1  # Adjusting for 0-based index
+            column_index = int(self.column_index.get()) - 1  # Adjusting for 0-based index
 
             if not self.validate_server_link(server_link):
                 messagebox.showerror("Error", "Server link must start with http:// or https://")
@@ -65,9 +71,9 @@ class SetupDialog:
                 messagebox.showerror("Error", "Room name is required")
                 return
 
-            if row_index < 1 or column_index < 1:
+            if row_index < 0 or column_index < 0:
                 messagebox.showerror(
-                    "Error", "Row and Column index must be greater than 0"
+                    "Error", "Row and Column index must be greater than or equal to 1"
                 )
                 return
 

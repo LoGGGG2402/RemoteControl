@@ -39,6 +39,7 @@ class SystemTrayIcon:
         self.icon = None
         self.stop_event = threading.Event()
         self.tray_thread = None
+        self.status_text = "Starting"
 
     def _create_image(self, width=64, height=64, color="blue"):
         """Tạo một hình ảnh đơn giản cho biểu tượng"""
@@ -57,6 +58,10 @@ class SystemTrayIcon:
         
         return image
 
+    def _status_action(self):
+        """Empty action for status menu item"""
+        pass
+        
     def _setup_icon(self):
         """Thiết lập biểu tượng và menu"""
         if not PYSTRAY_AVAILABLE:
@@ -66,7 +71,7 @@ class SystemTrayIcon:
         
         # Menu items cơ bản
         menu_items = [
-            pystray.MenuItem('Status: Connected', lambda: None, enabled=False),
+            pystray.MenuItem(f'Status: {self.status_text}', self._status_action, enabled=False),
             pystray.MenuItem('Show', self._show_app)
         ]
         
@@ -74,7 +79,7 @@ class SystemTrayIcon:
         if is_admin():
             menu_items.append(pystray.MenuItem('Update Config', self._update_config))
         
-        self.icon = pystray.Icon("RemoteControl", image, "Remote Control Agent", tuple(menu_items))
+        self.icon = pystray.Icon("RemoteControl", image, "Remote Control Agent", pystray.Menu(*menu_items))
 
     def _update_config(self, icon, item):
         """Xử lý sự kiện khi admin chọn "Update Config" từ menu"""
@@ -94,12 +99,22 @@ class SystemTrayIcon:
             logger.info(f"Status updated: {status_text}")
             return
             
+        # Store the status text for future menu rebuilds
+        self.status_text = status_text
+        
         if self.icon and hasattr(self.icon, 'menu'):
-            # Tìm và cập nhật menu item đầu tiên với trạng thái mới
-            new_menu = list(self.icon.menu)
-            if len(new_menu) > 0:
-                new_menu[0] = pystray.MenuItem(f'Status: {status_text}', lambda: None, enabled=False)
-                self.icon.menu = tuple(new_menu)
+            # Recreate the entire menu with the updated status text
+            menu_items = [
+                pystray.MenuItem(f'Status: {status_text}', self._status_action, enabled=False),
+                pystray.MenuItem('Show', self._show_app)
+            ]
+            
+            # Add "Update Config" if user is admin
+            if is_admin():
+                menu_items.append(pystray.MenuItem('Update Config', self._update_config))
+            
+            # Update the icon's menu
+            self.icon.menu = pystray.Menu(*menu_items)
 
     def start(self):
         """Khởi chạy biểu tượng System Tray trong một thread riêng"""

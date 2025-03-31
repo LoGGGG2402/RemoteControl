@@ -22,7 +22,8 @@ class CommandHandler:
         self.ws = None
         # Determine protocol based on server_link
         server_protocol = "wss" if self.config["server_link"].startswith("https") else "ws"
-        self.ws_url = f'{server_protocol}://{self.config["server_link"].split("://")[1]}/websocket'
+        # Fix the WebSocket path to use '/ws' instead of '/websocket'
+        self.ws_url = f'{server_protocol}://{self.config["server_link"].split("://")[1]}/ws'
         self.task_queue = queue.Queue()
         self.worker_thread = threading.Thread(target=self._process_tasks, daemon=True)
         self.worker_thread.start()
@@ -126,7 +127,9 @@ class CommandHandler:
 
         while True:
             try:
-                headers = {"Origin": f"http://{self.config['server_ip']}:3000"}
+                # Extract the server domain from server_link instead of using server_ip
+                server_domain = self.config["server_link"].split("://")[1].split("/")[0]
+                headers = {"Origin": f"http://{server_domain}"}
 
                 self.ws = websocket.WebSocketApp(
                     self.ws_url,
@@ -169,11 +172,28 @@ class CommandHandler:
                 }
 
             elif command_type == "get_network_connections":
-                connections = system_info.get_network_connections()
+                # Handle as a heavy task to avoid blocking the WebSocket
+                task_id = params.get("task_id") if params else None
+                info(f"Starting network connections retrieval with task_id: {task_id}")
+                
+                # Define a wrapper function that returns a tuple result
+                def get_network_connections_wrapped():
+                    try:
+                        connections = system_info.get_network_connections()
+                        return True, "Network connections retrieved", connections
+                    except Exception as e:
+                        error(f"Failed to get network connections: {str(e)}")
+                        return False, f"Failed to get network connections: {str(e)}", None
+                
+                self._execute_heavy_task(
+                    get_network_connections_wrapped,
+                    command_type=command_type,
+                    task_id=task_id,
+                )
                 return {
                     "success": True,
-                    "message": "Network connections retrieved",
-                    "data": connections,
+                    "message": "Network connections retrieval started",
+                    "data": {"status": "wait", "task_id": task_id},
                 }
 
             elif command_type == "install_application":

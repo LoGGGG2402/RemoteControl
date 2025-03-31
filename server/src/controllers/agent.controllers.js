@@ -57,110 +57,99 @@ const AgentController = {
                     code: "POSITION_OCCUPIED"
                 });
             }
-
-            let computer = await Computer.findByRoomAndIndex(
-                room.id,
-                row_index,
-                column_index
-            );
-
+            
             let computerId;
-            if (!computer) {
-                computerId = await Computer.create({
-                    room_id: room.id,
-                    row_index,
-                    column_index,
-                    ip_address,
-                    mac_address,
-                    hostname,
-                });
+            
+            // If computer exists, update it, otherwise create a new one
+            if (existingComputer) {
+                try {
+                    computerId = await Computer.update({
+                        id: existingComputer.id,
+                        room_id: room.id,
+                        row_index,
+                        column_index,
+                        ip_address,
+                        mac_address,
+                        hostname,
+                    });
+                } catch (updateError) {
+                    console.error("Error updating computer:", updateError);
+                    return res.status(500).json({ 
+                        error: "Failed to update computer record",
+                        code: "DATABASE_ERROR"
+                    });
+                }
             } else {
-                computerId = await Computer.update({
-                    id: computer.id,
-                    room_id: room.id,
-                    row_index,
-                    column_index,
-                    ip_address,
-                    mac_address,
-                    hostname,
+                try {
+                    computerId = await Computer.create({
+                        room_id: room.id,
+                        row_index,
+                        column_index,
+                        ip_address,
+                        mac_address,
+                        hostname,
+                    });
+                } catch (createError) {
+                    console.error("Error creating computer:", createError);
+                    return res.status(500).json({ 
+                        error: "Failed to create computer record",
+                        code: "DATABASE_ERROR"
+                    });
+                }
+            }
+            
+            // Ensure we have a valid computer ID
+            if (!computerId) {
+                return res.status(500).json({ 
+                    error: "Failed to create or update computer record",
+                    code: "DATABASE_ERROR"
                 });
             }
-
-            // Update applications list
-            if (req.body.applications) {
-                
-            }
-
-            res.send({ message: "Connected successfully", id: computerId });
+            
+            // Return both message and ID as expected by the agent
+            return res.json({ 
+                message: "Connected successfully", 
+                id: computerId 
+            });
         } catch (err) {
-            console.error(err);
+            console.error("Agent connect error:", err);
             if (err.code === "SQLITE_CONSTRAINT") {
-                res.status(400).json({ error: "Room not found" });
+                return res.status(400).json({ 
+                    error: "Room not found", 
+                    code: "ROOM_NOT_FOUND" 
+                });
             }
-            res.status(500).send("Internal Server Error");
+            return res.status(500).json({ 
+                error: "Internal Server Error", 
+                code: "INTERNAL_SERVER_ERROR" 
+            });
         }
     },
 
     updateListFileAndApplication: async (req, res) => {
-        const { id } = req.params;
-        const { listFile, listApplication } = req.body;
-
-        const computer = await Computer.findById(id);
-        if (!computer) {
-            res.status(404).send("Computer not found");
-            return;
-        }
-
-        const availableApplications = await Application.all();
-        const installedApplications = await Computer.getApplications(computer.id);
-
-        for (const application of listApplication) {
-            const availableApplication = availableApplications.find(
-                (a) => a.name === application
-            );
-                    if (availableApplication) {
-                        const installedApplication = installedApplications.find(
-                            (a) => a.name === application
-                        );
-                        if (!installedApplication) {
-                            await Computer.installApplication(
-                                computer.id,
-                                availableApplication.id,
-                                1
-                            );
-                }
+        try {
+            const { id } = req.params;
+            const { listFile, listApplication } = req.body;
+            
+            const computer = await Computer.findById(id);
+            if (!computer) {
+                return res.status(404).json({ 
+                    error: "Computer not found", 
+                    code: "COMPUTER_NOT_FOUND" 
+                });
             }
+            
+            // Use the new method in Computer model to handle database operations
+            await Computer.updateListFileAndApplication(id, listFile, listApplication);
+            
+            return res.json({ message: "Updated successfully" });
+        } catch (err) {
+            console.error("Error updating application and file lists:", err);
+            return res.status(500).json({ 
+                error: "Internal Server Error", 
+                code: "INTERNAL_SERVER_ERROR" 
+            });
         }
-
-        for (const application of installedApplications) {
-            if (!listApplication.includes(application.name)) {
-                await Computer.removeApplication(
-                    computer.id,
-                    application.id
-                );
-            }
-        }
-
-        const availableFiles = await File.all();
-        const installedFiles = await Computer.getFiles(computer.id);
-
-        for (const file of listFile) {
-            const availableFile = availableFiles.find((f) => f.name === file);
-            if (availableFile) {
-                const installedFile = installedFiles.find((f) => f.name === file);
-                if (!installedFile) {
-                    await Computer.installFile(computer.id, availableFile.id, 1);
-                }
-            }
-        }
-
-        for (const file of installedFiles) {
-            if (!listFile.includes(file.name)) {
-                await Computer.removeFile(computer.id, file.id);
-            }
-        }
-
-        res.send("Updated successfully");
     },
 };
 

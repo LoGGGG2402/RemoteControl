@@ -3,12 +3,14 @@ import platform
 import socket
 import datetime
 import uuid
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
 
 # Third-party library imports
 import psutil
-import logging
 
-logger = logging.getLogger(__name__)
+# Local imports
+from agent.core.utils.logger import info, error, warning
 
 
 def get_basic_info():
@@ -41,43 +43,97 @@ def get_process_list():
             pinfo["memory_mb"] = proc.memory_info().rss / (1024 * 1024)  # Convert to MB
             process_list.append(pinfo)
         except Exception as e:
-            logger.error(f"Error getting process info: {e}")
+            error(f"Error getting process info: {e}")
             continue
 
-    logger.info("Successfully retrieved process list")
+    info("Successfully retrieved process list")
     return process_list
 
 
-def get_remote_hostname(ip):
+def get_remote_hostname(ip, timeout=0.5):
+    """
+    Get hostname with a timeout to avoid hanging
+    """
     try:
+        socket.setdefaulttimeout(timeout)
         return socket.gethostbyaddr(ip)[0]
-    except (socket.herror, socket.gaierror):
+    except (socket.herror, socket.gaierror, socket.timeout):
+        return None
+    except Exception as e:
+        error(f"Error resolving hostname for {ip}: {str(e)}")
         return None
 
 
 def get_network_connections():
+    """
+    Get network connections with improved error handling and performance
+    """
+    start_time = time.time()
     connections = []
-    for conn in psutil.net_connections(kind="inet"):
-        if conn.laddr and conn.raddr:
+    connection_count = 0
+    error_count = 0
+    
+    try:
+        # Limit the total execution time
+        max_execution_time = 15  # seconds
+        
+        # Get all connections first
+        all_connections = psutil.net_connections(kind="inet")
+        connection_count = len(all_connections)
+        info(f"Found {connection_count} total network connections")
+        
+        # Filter connections with remote addresses
+        filtered_connections = [conn for conn in all_connections if conn.laddr and conn.raddr]
+        
+        # Process connections with a limit on total time
+        for conn in filtered_connections:
+            # Check if we've exceeded our time budget
+            if time.time() - start_time > max_execution_time:
+                warning(f"Network connection processing timeout after {max_execution_time} seconds")
+                break
+                
             try:
                 process = psutil.Process(conn.pid)
                 remote_ip, remote_port = conn.raddr
-                remote_host = get_remote_hostname(remote_ip)
-
+                
+                # Skip hostname resolution for private IPs to save time
+                if remote_ip.startswith(('10.', '172.', '192.168.')):
+                    remote_host = None
+                else:
+                    remote_host = get_remote_hostname(remote_ip)
+                
                 connections.append(
                     {
                         "pid": conn.pid,
                         "username": process.username(),
                         "name": process.name(),
-                        # "local": f"{conn.laddr.ip}:{conn.laddr.port}",
-                        "remote": f"{conn.raddr.ip}:{conn.raddr.port}",
+                        "remote": f"{remote_ip}:{remote_port}",
                         "remote_host": remote_host,
                         "state": conn.status,
                     }
                 )
-            except Exception as e:
-                print(f"Error getting process info: {e}")
+            except psutil.NoSuchProcess:
+                # Process might have terminated
                 continue
+            except psutil.AccessDenied:
+                # No permission to access this process
+                continue
+            except Exception as e:
+                error_count += 1
+                error(f"Error processing network connection: {str(e)}")
+                continue
+
+        elapsed_time = time.time() - start_time
+        info(f"Network connections processed in {elapsed_time:.2f} seconds. "
+             f"Retrieved {len(connections)} of {connection_count} connections. "
+             f"Errors: {error_count}")
+        
+        # Sort connections by process name for better readability
+        connections.sort(key=lambda x: x.get("name", ""))
+        
+    except Exception as e:
+        error(f"Critical error in get_network_connections: {str(e)}")
+        
     return connections
 
 

@@ -25,7 +25,7 @@ def move_executable(service_destination_path):
         # Tạo thư mục đích nếu chưa tồn tại
         executable_path = sys.executable
         if not os.path.exists(service_destination_path):
-            os.makedirs(service_destination_path)
+            os.makedirs(service_destination_path, exist_ok=True)
             
         # Lấy tên file thực thi
         executable_name = os.path.basename(executable_path)
@@ -51,7 +51,7 @@ def move_executable(service_destination_path):
 
 def register_as_service(service_name, executable_path):
     """
-    Đăng ký agent như một Windows service chạy dưới quyền admin
+    Đăng ký agent như một service chạy tự động
     
     Args:
         service_name (str): Tên của service
