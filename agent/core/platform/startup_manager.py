@@ -3,10 +3,8 @@ import os
 import subprocess
 import shutil
 import uuid
-
 import ctypes
-
-from . import logger
+import agent.core.utils.logger as logger
 
 APP_GUID = "{bf70ebc0-5fcb-4c42-9761-1bb88e5d9fc7}"
 

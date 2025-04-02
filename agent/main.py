@@ -3,7 +3,7 @@ Main entry point for the RemoteControl Agent
 """
 import sys
 import signal
-from agent.core.agent import Agent
+from agent.core.agent_core import Agent
 from agent.core.utils import logger
 
 def handle_exit_signal(sig, frame):

@@ -1,49 +1,75 @@
 import pystray
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError, ImageDraw
 import threading
 import os
 import sys
+import agent.core.utils.logger as logger
+import agent.core.platform.startup_manager as startup_manager
 
-from . import logger
-from . import startup_manager
+def create_default_icon():
+    """
+    Creates a simple default icon when the icon file can't be loaded
+    """
+    # Create a simple default icon (a blue square)
+    width = 64
+    height = 64
+    color = (0, 120, 212)  # Blue color
+    
+    image = Image.new('RGB', (width, height), color=color)
+    draw = ImageDraw.Draw(image)
+    
+    # Add a simple design (white border)
+    border_width = 3
+    draw.rectangle(
+        [(border_width, border_width), 
+         (width - border_width, height - border_width)], 
+        outline=(255, 255, 255)
+    )
+    
+    logger.info("Created a default icon because the icon file could not be loaded")
+    return image
 
 def get_icon_path():
     try:
+        # First try to find the icon in the build directory
         base_dir = None
         if getattr(sys, 'frozen', False):
+            # Running as exe (frozen)
             base_dir = os.path.dirname(sys.executable)
             if os.path.basename(base_dir) == 'dist':
-                 base_dir = os.path.dirname(base_dir)
+                base_dir = os.path.dirname(base_dir)
             logger.debug(f"Running frozen, base directory for icon search: {base_dir}")
         else:
+            # Running as script
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(script_dir))))
+            # Go up to project root (4 levels up from ui dir)
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
             logger.debug(f"Running from source, base directory for icon search: {base_dir}")
-
-        icon_path = os.path.join(base_dir, 'agent', 'build', 'icon.ico')
-        icon_path = os.path.normpath(icon_path)
-
-        if not os.path.exists(icon_path):
-            logger.warning(f"Icon file not found at expected path: {icon_path}. Trying alternative project structure.")
-            if not getattr(sys, 'frozen', False):
-                alt_icon_path = os.path.join(os.path.dirname(base_dir), 'agent', 'build', 'icon.ico')
-                alt_icon_path = os.path.normpath(alt_icon_path)
-                if os.path.exists(alt_icon_path):
-                     logger.info(f"Found icon using alternative path: {alt_icon_path}")
-                     return alt_icon_path
-                else:
-                    logger.warning(f"Alternative icon path also not found: {alt_icon_path}. Using pystray default.")
-                    return None
-            else:
-                 logger.warning(f"Still not found after checking base dir. Using pystray default.")
-                 return None
-
-        logger.info(f"Using icon file found at: {icon_path}")
-        return icon_path
+        
+        # Try several possible paths for the icon
+        possible_paths = [
+            # Standard path
+            os.path.join(base_dir, 'agent', 'build', 'icon.ico'),
+            # Alternative path
+            os.path.join(os.path.dirname(base_dir), 'agent', 'build', 'icon.ico'),
+            # Direct executable directory
+            os.path.join(os.path.dirname(sys.executable), 'icon.ico'),
+            # Path relative to ui directory
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'build', 'icon.ico')
+        ]
+        
+        for path in possible_paths:
+            norm_path = os.path.normpath(path)
+            if os.path.exists(norm_path):
+                logger.info(f"Found icon at: {norm_path}")
+                return norm_path
+                
+        logger.warning("Icon file not found in any of the expected locations. Will use default icon.")
+        return None
 
     except Exception as e:
-         logger.error(f"Error determining icon path: {e}")
-         return None
+        logger.error(f"Error determining icon path: {e}")
+        return None
 
 class SystemTrayIcon:
     def __init__(self, update_config_callback=None, register_startup_callback=None, unregister_startup_callback=None):
@@ -121,21 +147,22 @@ class SystemTrayIcon:
 
     def _load_icon_image(self):
         if not self._icon_path:
-            logger.warning("No icon path specified, using pystray default icon.")
-            return None
+            logger.warning("No icon path found, using generated default icon.")
+            return create_default_icon()
+            
         try:
             image = Image.open(self._icon_path)
             logger.debug(f"Successfully loaded icon image from: {self._icon_path}")
             return image
         except FileNotFoundError:
-             logger.error(f"Icon file not found at path: {self._icon_path}")
-             return None
+            logger.error(f"Icon file not found at path: {self._icon_path}")
+            return create_default_icon()
         except UnidentifiedImageError:
             logger.error(f"Cannot identify image file (is it a valid .ico?): {self._icon_path}")
-            return None
+            return create_default_icon()
         except Exception as e:
             logger.error(f"Failed to load icon image from '{self._icon_path}': {e}")
-            return None
+            return create_default_icon()
 
     def _run_tray_thread(self):
         logger.info("System tray thread started.")
