@@ -1,3 +1,4 @@
 """
-Đánh dấu thư mục agent là một Python package
+RemoteControl Agent Package
+Version: 1.0.0
 """

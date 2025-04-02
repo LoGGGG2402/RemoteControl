@@ -1,140 +1,200 @@
+import pystray
+from PIL import Image, UnidentifiedImageError
+import threading
 import os
 import sys
-import threading
-import ctypes
-import logging
 
-logger = logging.getLogger(__name__)
+from . import logger
+from . import startup_manager
 
-# Try to import pystray, but provide a fallback if it's not available
-try:
-    import pystray
-    from PIL import Image, ImageDraw
-    PYSTRAY_AVAILABLE = True
-except ImportError:
-    logger.warning("pystray module not available. System tray functionality will be disabled.")
-    PYSTRAY_AVAILABLE = False
-
-def is_admin():
-    """
-    Kiểm tra xem ứng dụng có đang chạy với quyền admin hay không
-    
-    Returns:
-        bool: True nếu đang chạy với quyền admin, False nếu không
-    """
+def get_icon_path():
     try:
-        return ctypes.windll.shell32.IsUserAnAdmin() != 0
-    except:
-        return False
+        base_dir = None
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+            if os.path.basename(base_dir) == 'dist':
+                 base_dir = os.path.dirname(base_dir)
+            logger.debug(f"Running frozen, base directory for icon search: {base_dir}")
+        else:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(script_dir))))
+            logger.debug(f"Running from source, base directory for icon search: {base_dir}")
+
+        icon_path = os.path.join(base_dir, 'agent', 'build', 'icon.ico')
+        icon_path = os.path.normpath(icon_path)
+
+        if not os.path.exists(icon_path):
+            logger.warning(f"Icon file not found at expected path: {icon_path}. Trying alternative project structure.")
+            if not getattr(sys, 'frozen', False):
+                alt_icon_path = os.path.join(os.path.dirname(base_dir), 'agent', 'build', 'icon.ico')
+                alt_icon_path = os.path.normpath(alt_icon_path)
+                if os.path.exists(alt_icon_path):
+                     logger.info(f"Found icon using alternative path: {alt_icon_path}")
+                     return alt_icon_path
+                else:
+                    logger.warning(f"Alternative icon path also not found: {alt_icon_path}. Using pystray default.")
+                    return None
+            else:
+                 logger.warning(f"Still not found after checking base dir. Using pystray default.")
+                 return None
+
+        logger.info(f"Using icon file found at: {icon_path}")
+        return icon_path
+
+    except Exception as e:
+         logger.error(f"Error determining icon path: {e}")
+         return None
 
 class SystemTrayIcon:
-    def __init__(self, update_config_callback=None):
-        """
-        Khởi tạo biểu tượng System Tray
-        
-        Args:
-            update_config_callback (function): Callback được gọi khi admin chọn "Update Config"
-        """
+    def __init__(self, update_config_callback=None, register_startup_callback=None, unregister_startup_callback=None):
         self.update_config_callback = update_config_callback
-        self.icon = None
-        self.stop_event = threading.Event()
-        self.tray_thread = None
-        self.status_text = "Starting"
+        self.register_startup_callback = register_startup_callback
+        self.unregister_startup_callback = unregister_startup_callback
 
-    def _create_image(self, width=64, height=64, color="blue"):
-        """Tạo một hình ảnh đơn giản cho biểu tượng"""
-        if not PYSTRAY_AVAILABLE:
-            return None
-            
-        # Tạo ảnh trống
-        image = Image.new('RGB', (width, height), color='white')
-        dc = ImageDraw.Draw(image)
-        
-        # Vẽ hình tròn màu xanh
-        dc.ellipse([8, 8, width - 8, height - 8], fill=color)
-        
-        # Vẽ chữ "RC" (Remote Control) ở giữa
-        #dc.text((width//2, height//2), "RC", fill='white')
-        
-        return image
+        self._icon = None
+        self._tray_thread = None
+        self._status_text = "Initializing"
+        self._is_registered_for_startup = False
+        self._icon_path = get_icon_path()
+        self._stop_event = threading.Event()
+
+        logger.info("SystemTrayIcon initialized.")
 
     def _status_action(self):
-        """Empty action for status menu item"""
         pass
-        
-    def _setup_icon(self):
-        """Thiết lập biểu tượng và menu"""
-        if not PYSTRAY_AVAILABLE:
-            return
-            
-        image = self._create_image()
-        
-        # Menu items cơ bản
-        menu_items = [
-            pystray.MenuItem(f'Status: {self.status_text}', self._status_action, enabled=False),
-            pystray.MenuItem('Show', self._show_app)
-        ]
-        
-        # Chỉ thêm nút "Update Config" nếu có quyền admin
-        if is_admin():
-            menu_items.append(pystray.MenuItem('Update Config', self._update_config))
-        
-        self.icon = pystray.Icon("RemoteControl", image, "Remote Control Agent", pystray.Menu(*menu_items))
 
-    def _update_config(self, icon, item):
-        """Xử lý sự kiện khi admin chọn "Update Config" từ menu"""
-        if is_admin() and self.update_config_callback:
-            self.update_config_callback()
+    def _register_startup(self, icon=None, item=None):
+        if self.register_startup_callback:
+            logger.info("'Register for Startup' selected from tray menu.")
+            threading.Thread(target=self.register_startup_callback, daemon=True).start()
         else:
-            logger.warning("Attempted to update config without admin rights")
+            logger.warning("'Register for Startup' selected, but no callback is configured.")
 
-    def _show_app(self, icon, item):
-        """Hiển thị cửa sổ ứng dụng chính (nếu có)"""
-        # Có thể thêm code để hiển thị UI của ứng dụng nếu cần
-        logger.info("Show app requested from system tray")
+    def _unregister_startup(self, icon=None, item=None):
+        if self.unregister_startup_callback:
+            logger.info("'Unregister from Startup' selected from tray menu.")
+            threading.Thread(target=self.unregister_startup_callback, daemon=True).start()
+        else:
+            logger.warning("'Unregister from Startup' selected, but no callback is configured.")
+
+    def _update_config(self, icon=None, item=None):
+        if not startup_manager.is_admin():
+             logger.warning("'Update Config' selected, but user lacks admin rights.")
+             return
+
+        if self.update_config_callback:
+            logger.info("'Update Config' selected from tray menu (Admin)." )
+            threading.Thread(target=self.update_config_callback, daemon=True).start()
+        else:
+            logger.error("'Update Config' selected, but no callback is configured.")
+
+    def _exit_app(self, icon=None, item=None):
+         logger.info("'Exit' selected from tray menu. Initiating shutdown.")
+         self.stop()
+         logger.info("Exiting application process...")
+         os._exit(0)
+
+    def _setup_menu(self):
+        logger.debug("Setting up tray menu...")
+        menu_items = [
+            pystray.MenuItem(f'Status: {self._status_text}', self._status_action, enabled=False),
+            pystray.Menu.SEPARATOR
+        ]
+
+        is_currently_admin = startup_manager.is_admin()
+        logger.debug(f"Admin status for menu setup: {is_currently_admin}")
+        if is_currently_admin:
+            menu_items.append(pystray.MenuItem('Update Config', self._update_config))
+            if self._is_registered_for_startup:
+                 menu_items.append(pystray.MenuItem('Unregister from Startup', self._unregister_startup))
+            else:
+                 menu_items.append(pystray.MenuItem('Register for Startup', self._register_startup))
+            menu_items.append(pystray.Menu.SEPARATOR)
+        else:
+             menu_items.append(pystray.MenuItem('Update Config (Admin required)', None, enabled=False))
+             menu_items.append(pystray.MenuItem('Manage Startup (Admin required)', None, enabled=False))
+             menu_items.append(pystray.Menu.SEPARATOR)
+
+        menu_items.append(pystray.MenuItem('Exit', self._exit_app))
+
+        return pystray.Menu(*menu_items)
+
+    def _load_icon_image(self):
+        if not self._icon_path:
+            logger.warning("No icon path specified, using pystray default icon.")
+            return None
+        try:
+            image = Image.open(self._icon_path)
+            logger.debug(f"Successfully loaded icon image from: {self._icon_path}")
+            return image
+        except FileNotFoundError:
+             logger.error(f"Icon file not found at path: {self._icon_path}")
+             return None
+        except UnidentifiedImageError:
+            logger.error(f"Cannot identify image file (is it a valid .ico?): {self._icon_path}")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to load icon image from '{self._icon_path}': {e}")
+            return None
+
+    def _run_tray_thread(self):
+        logger.info("System tray thread started.")
+        try:
+            image = self._load_icon_image()
+
+            self._icon = pystray.Icon(
+                 "RemoteControlAgent",
+                 image,
+                 "Remote Control Agent",
+                 menu=self._setup_menu()
+            )
+            self._icon.run()
+
+        except Exception as e:
+            logger.critical(f"Fatal error in system tray thread: {e}", exc_info=True)
+        finally:
+            logger.info("System tray thread finished.")
 
     def update_status(self, status_text):
-        """Cập nhật trạng thái hiển thị trong menu"""
-        if not PYSTRAY_AVAILABLE:
-            logger.info(f"Status updated: {status_text}")
-            return
-            
-        # Store the status text for future menu rebuilds
-        self.status_text = status_text
-        
-        if self.icon and hasattr(self.icon, 'menu'):
-            # Recreate the entire menu with the updated status text
-            menu_items = [
-                pystray.MenuItem(f'Status: {status_text}', self._status_action, enabled=False),
-                pystray.MenuItem('Show', self._show_app)
-            ]
-            
-            # Add "Update Config" if user is admin
-            if is_admin():
-                menu_items.append(pystray.MenuItem('Update Config', self._update_config))
-            
-            # Update the icon's menu
-            self.icon.menu = pystray.Menu(*menu_items)
+        self._status_text = status_text
+        logger.debug(f"Updating tray status to: {status_text}")
+        if self._icon and self._icon.visible:
+            self._icon.menu = self._setup_menu()
+
+    def update_startup_status(self, is_registered):
+         self._is_registered_for_startup = is_registered
+         logger.debug(f"Updating tray startup registration status to: {is_registered}")
+         if self._icon and self._icon.visible:
+             self._icon.menu = self._setup_menu()
 
     def start(self):
-        """Khởi chạy biểu tượng System Tray trong một thread riêng"""
-        if not PYSTRAY_AVAILABLE:
-            logger.info("System tray functionality is disabled")
+        if self._tray_thread and self._tray_thread.is_alive():
+            logger.warning("System tray thread is already running.")
             return
-            
-        def run_icon():
-            self._setup_icon()
-            self.icon.run()
-            
-        self.tray_thread = threading.Thread(target=run_icon, daemon=True)
-        self.tray_thread.start()
-        logger.info("System Tray icon started")
-        
+
+        logger.info("Starting system tray thread...")
+        self._stop_event.clear()
+        self._tray_thread = threading.Thread(target=self._run_tray_thread, name="SystemTrayThread", daemon=True)
+        self._tray_thread.start()
+
     def stop(self):
-        """Dừng biểu tượng System Tray"""
-        if not PYSTRAY_AVAILABLE:
-            return
-            
-        if self.icon:
-            self.icon.stop()
-            logger.info("System Tray icon stopped")
+        logger.info("Attempting to stop system tray...")
+        if self._icon:
+            try:
+                self._icon.stop()
+                logger.info("Sent stop signal to pystray icon.")
+            except Exception as e:
+                 logger.error(f"Error sending stop signal to pystray: {e}")
+
+        if self._tray_thread and self._tray_thread.is_alive():
+            logger.debug("Waiting for system tray thread to join...")
+            self._tray_thread.join(timeout=2)
+            if self._tray_thread.is_alive():
+                  logger.warning("System tray thread did not stop within the timeout period.")
+            else:
+                 logger.info("System tray thread joined successfully.")
+        else:
+             logger.debug("System tray thread was not running or already stopped.")
+
+        self._icon = None
+        self._tray_thread = None

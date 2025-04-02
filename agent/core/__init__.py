@@ -1,3 +1,3 @@
 """
-Đánh dấu thư mục agent.core là một Python package
+Core components of the RemoteControl Agent
 """
