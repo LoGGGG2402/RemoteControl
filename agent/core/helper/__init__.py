@@ -1,3 +1,3 @@
 """
-Đánh dấu thư mục agent.core.helper là một Python package
+Helper modules for the RemoteControl Agent providing specific functionalities
 """

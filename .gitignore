@@ -76,9 +76,6 @@ __pycache__/
 build/
 dist/
 *.spec
-agent.spec
-agent/build/
-agent/dist/
 *.pkg
 *.exe
 *.manifest
